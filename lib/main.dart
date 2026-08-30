@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'core/di/service_locator.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await ServiceLocator.instance.initialize();
+
   runApp(const QswApp());
 }

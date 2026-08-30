@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/navigation/app_router.dart';
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -25,13 +27,26 @@ class HomePage extends StatelessWidget {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.25,
-                  children: const [
-                    _HomeMenuButton(icon: Icons.input, title: 'Receiving'),
-                    _HomeMenuButton(icon: Icons.output, title: 'Shipping'),
-                    _HomeMenuButton(icon: Icons.search, title: 'Part Search'),
+                  children: [
+                    const _HomeMenuButton(
+                      icon: Icons.input,
+                      title: 'Receiving',
+                    ),
+                    const _HomeMenuButton(
+                      icon: Icons.output,
+                      title: 'Shipping',
+                    ),
+                    const _HomeMenuButton(
+                      icon: Icons.search,
+                      title: 'Part Search',
+                    ),
                     _HomeMenuButton(
+                      key: const Key('inventory_button'),
                       icon: Icons.inventory_2_outlined,
                       title: 'Inventory',
+                      onTap: () {
+                        Navigator.of(context).pushNamed(AppRouter.parts);
+                      },
                     ),
                   ],
                 ),
@@ -45,17 +60,23 @@ class HomePage extends StatelessWidget {
 }
 
 class _HomeMenuButton extends StatelessWidget {
-  const _HomeMenuButton({required this.icon, required this.title});
+  const _HomeMenuButton({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.onTap,
+  });
 
   final IconData icon;
   final String title;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
