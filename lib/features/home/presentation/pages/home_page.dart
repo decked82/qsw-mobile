@@ -36,9 +36,13 @@ class HomePage extends StatelessWidget {
                       icon: Icons.output,
                       title: 'Shipping',
                     ),
-                    const _HomeMenuButton(
+                    _HomeMenuButton(
+                      key: const Key('part_search_button'),
                       icon: Icons.search,
                       title: 'Part Search',
+                      onTap: () {
+                        Navigator.of(context).pushNamed(AppRouter.partSearch);
+                      },
                     ),
                     _HomeMenuButton(
                       key: const Key('inventory_button'),
