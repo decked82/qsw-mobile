@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/navigation/app_router.dart';
 
 class HomePage extends StatelessWidget {
@@ -7,8 +9,47 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('QSW Mobile')),
+      appBar: AppBar(
+        title: Text(l10n.appTitle),
+        actions: [
+          PopupMenuButton<Locale>(
+            icon: const Icon(Icons.language),
+            onSelected: (locale) {
+              QswApp.of(context).setLocale(locale);
+            },
+            itemBuilder: (context) {
+              final currentLocale = QswApp.of(context).locale;
+
+              return [
+                PopupMenuItem(
+                  value: const Locale('en'),
+                  child: _LanguageMenuItem(
+                    label: 'English',
+                    selected: currentLocale?.languageCode == 'en',
+                  ),
+                ),
+                PopupMenuItem(
+                  value: const Locale('ko'),
+                  child: _LanguageMenuItem(
+                    label: '한국어',
+                    selected: currentLocale?.languageCode == 'ko',
+                  ),
+                ),
+                PopupMenuItem(
+                  value: const Locale('ru'),
+                  child: _LanguageMenuItem(
+                    label: 'Русский',
+                    selected: currentLocale?.languageCode == 'ru',
+                  ),
+                ),
+              ];
+            },
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -17,7 +58,7 @@ class HomePage extends StatelessWidget {
             children: [
               const SizedBox(height: 8),
               Text(
-                'Quick Search in Warehouse',
+                l10n.appDescription,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 24),
@@ -28,18 +69,12 @@ class HomePage extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.25,
                   children: [
-                    const _HomeMenuButton(
-                      icon: Icons.input,
-                      title: 'Receiving',
-                    ),
-                    const _HomeMenuButton(
-                      icon: Icons.output,
-                      title: 'Shipping',
-                    ),
+                    _HomeMenuButton(icon: Icons.input, title: l10n.receiving),
+                    _HomeMenuButton(icon: Icons.output, title: l10n.shipping),
                     _HomeMenuButton(
                       key: const Key('part_search_button'),
                       icon: Icons.search,
-                      title: 'Part Search',
+                      title: l10n.partSearch,
                       onTap: () {
                         Navigator.of(context).pushNamed(AppRouter.partSearch);
                       },
@@ -47,7 +82,7 @@ class HomePage extends StatelessWidget {
                     _HomeMenuButton(
                       key: const Key('inventory_button'),
                       icon: Icons.inventory_2_outlined,
-                      title: 'Inventory',
+                      title: l10n.inventory,
                       onTap: () {
                         Navigator.of(context).pushNamed(AppRouter.parts);
                       },
@@ -101,6 +136,26 @@ class _HomeMenuButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LanguageMenuItem extends StatelessWidget {
+  const _LanguageMenuItem({required this.label, required this.selected});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 24,
+          child: selected ? const Icon(Icons.check, size: 18) : null,
+        ),
+        Text(label),
+      ],
     );
   }
 }

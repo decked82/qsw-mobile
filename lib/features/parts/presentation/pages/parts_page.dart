@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/entities/part.dart';
 import '../../domain/use_cases/delete_part.dart';
 import '../../domain/use_cases/get_parts.dart';
@@ -37,22 +38,24 @@ class _PartsPageState extends State<PartsPage> {
       return;
     }
 
+    final l10n = AppLocalizations.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete Part'),
-          content: Text('Are you sure you want to delete "${part.partCode}"?'),
+          title: Text(l10n.deletePart),
+          content: Text(l10n.confirmDeletePart(part.partCode)),
           actions: [
             TextButton(
               key: const Key('cancel_delete_button'),
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             FilledButton(
               key: const Key('confirm_delete_button'),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
+              child: Text(l10n.delete),
             ),
           ],
         );
@@ -72,31 +75,33 @@ class _PartsPageState extends State<PartsPage> {
 
       _reload();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Part deleted successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.partDeletedSuccessfully)));
     } catch (error) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to delete part: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.failedToDeletePart(error.toString()))),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Parts'),
+        title: Text(l10n.parts),
         actions: [
           IconButton(
             key: const Key('refresh_parts_button'),
             onPressed: _reload,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
           ),
         ],
       ),
@@ -152,6 +157,8 @@ class _PartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -173,11 +180,11 @@ class _PartCard extends StatelessWidget {
                 ),
               if (part.barcode != null && part.barcode!.isNotEmpty)
                 Text(
-                  'Barcode: ${part.barcode}',
+                  '${l10n.barcode}: ${part.barcode}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               Text(
-                'Unit: ${part.unit}',
+                '${l10n.unit}: ${part.unit}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -187,7 +194,7 @@ class _PartCard extends StatelessWidget {
           key: Key('delete_part_${part.id}'),
           onPressed: onDelete,
           icon: const Icon(Icons.delete_outline),
-          tooltip: 'Delete',
+          tooltip: l10n.delete,
         ),
       ),
     );
@@ -199,6 +206,8 @@ class _EmptyPartsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -212,12 +221,12 @@ class _EmptyPartsView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No parts found',
+              l10n.noPartsFound,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Add a part to see it here.',
+              l10n.addPartToSeeItHere,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -235,6 +244,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -244,7 +255,7 @@ class _ErrorView extends StatelessWidget {
             const Icon(Icons.error_outline, size: 48),
             const SizedBox(height: 16),
             Text(
-              'Failed to load parts',
+              l10n.failedToLoadParts,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 16),
@@ -252,7 +263,7 @@ class _ErrorView extends StatelessWidget {
               key: const Key('retry_parts_button'),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(l10n.retry),
             ),
           ],
         ),

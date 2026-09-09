@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../domain/entities/part.dart';
 import '../../domain/use_cases/add_part.dart';
 
@@ -63,9 +64,11 @@ class _AddPartPageState extends State<AddPartPage> {
         return;
       }
 
+      final l10n = AppLocalizations.of(context);
+
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Part added successfully')));
+      ).showSnackBar(SnackBar(content: Text(l10n.partAddedSuccessfully)));
 
       _formKey.currentState!.reset();
 
@@ -79,9 +82,11 @@ class _AddPartPageState extends State<AddPartPage> {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to add part: $error')));
+      final l10n = AppLocalizations.of(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.failedToAddPart(error.toString()))),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -93,8 +98,10 @@ class _AddPartPageState extends State<AddPartPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Part')),
+      appBar: AppBar(title: Text(l10n.addPart)),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -103,14 +110,14 @@ class _AddPartPageState extends State<AddPartPage> {
             TextFormField(
               key: const Key('part_code_field'),
               controller: _partCodeController,
-              decoration: const InputDecoration(
-                labelText: 'Part Code',
-                hintText: 'Enter part code',
+              decoration: InputDecoration(
+                labelText: l10n.partCode,
+                hintText: l10n.enterPartCode,
               ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Part Code is required';
+                  return l10n.partCodeRequired;
                 }
                 return null;
               },
@@ -119,14 +126,14 @@ class _AddPartPageState extends State<AddPartPage> {
             TextFormField(
               key: const Key('name_field'),
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                hintText: 'Enter part name',
+              decoration: InputDecoration(
+                labelText: l10n.name,
+                hintText: l10n.enterPartName,
               ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Name is required';
+                  return l10n.nameRequired;
                 }
                 return null;
               },
@@ -135,9 +142,9 @@ class _AddPartPageState extends State<AddPartPage> {
             TextFormField(
               key: const Key('specification_field'),
               controller: _specificationController,
-              decoration: const InputDecoration(
-                labelText: 'Specification',
-                hintText: 'Enter specification',
+              decoration: InputDecoration(
+                labelText: l10n.specification,
+                hintText: l10n.enterSpecification,
               ),
               textInputAction: TextInputAction.next,
               maxLines: 2,
@@ -146,9 +153,9 @@ class _AddPartPageState extends State<AddPartPage> {
             TextFormField(
               key: const Key('barcode_field'),
               controller: _barcodeController,
-              decoration: const InputDecoration(
-                labelText: 'Barcode',
-                hintText: 'Enter barcode',
+              decoration: InputDecoration(
+                labelText: l10n.barcode,
+                hintText: l10n.enterBarcode,
               ),
               textInputAction: TextInputAction.next,
               keyboardType: TextInputType.number,
@@ -157,14 +164,14 @@ class _AddPartPageState extends State<AddPartPage> {
             TextFormField(
               key: const Key('unit_field'),
               controller: _unitController,
-              decoration: const InputDecoration(
-                labelText: 'Unit',
-                hintText: 'Enter unit',
+              decoration: InputDecoration(
+                labelText: l10n.unit,
+                hintText: l10n.enterUnit,
               ),
               textInputAction: TextInputAction.done,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Unit is required';
+                  return l10n.unitRequired;
                 }
                 return null;
               },
@@ -182,7 +189,7 @@ class _AddPartPageState extends State<AddPartPage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.add),
-                label: Text(_isSaving ? 'Saving...' : 'Add Part'),
+                label: Text(_isSaving ? l10n.saving : l10n.addPart),
               ),
             ),
           ],

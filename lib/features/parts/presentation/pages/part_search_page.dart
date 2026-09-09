@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../domain/entities/part.dart';
 import '../../domain/use_cases/search_parts.dart';
@@ -64,9 +65,11 @@ class _PartSearchPageState extends State<PartSearchPage> {
         _isSearching = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to search parts: $error')));
+      final l10n = AppLocalizations.of(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.failedToSearchParts(error.toString()))),
+      );
     }
   }
 
@@ -81,8 +84,10 @@ class _PartSearchPageState extends State<PartSearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Part Search')),
+      appBar: AppBar(title: Text(l10n.partSearch)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -93,8 +98,8 @@ class _PartSearchPageState extends State<PartSearchPage> {
                 key: const Key('part_search_field'),
                 controller: _searchController,
                 decoration: InputDecoration(
-                  labelText: 'Part Code or Name',
-                  hintText: 'Enter part code or name',
+                  labelText: l10n.partCodeOrName,
+                  hintText: l10n.enterPartCodeOrName,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: IconButton(
                     key: const Key('clear_search_button'),
@@ -118,7 +123,7 @@ class _PartSearchPageState extends State<PartSearchPage> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.search),
-                  label: Text(_isSearching ? 'Searching...' : 'Search'),
+                  label: Text(_isSearching ? l10n.searching : l10n.search),
                 ),
               ),
               const SizedBox(height: 16),
@@ -130,7 +135,7 @@ class _PartSearchPageState extends State<PartSearchPage> {
                   Navigator.of(context).pushNamed(AppRouter.addPart);
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('Add Part'),
+                label: Text(l10n.addPart),
               ),
             ],
           ),
@@ -140,12 +145,14 @@ class _PartSearchPageState extends State<PartSearchPage> {
   }
 
   Widget _buildResults() {
+    final l10n = AppLocalizations.of(context);
+
     if (!_hasSearched) {
-      return const Center(child: Text('Enter a part code or name to search.'));
+      return Center(child: Text(l10n.enterPartCodeOrNameToSearch));
     }
 
     if (_results.isEmpty) {
-      return const Center(child: Text('No parts found'));
+      return Center(child: Text(l10n.noPartsFound));
     }
 
     return ListView.separated(
@@ -166,8 +173,8 @@ class _PartSearchPageState extends State<PartSearchPage> {
                     part.specification!.isNotEmpty)
                   Text(part.specification!),
                 if (part.barcode != null && part.barcode!.isNotEmpty)
-                  Text('Barcode: ${part.barcode}'),
-                Text('Unit: ${part.unit}'),
+                  Text('${l10n.barcode}: ${part.barcode}'),
+                Text('${l10n.unit}: ${part.unit}'),
               ],
             ),
           ),
