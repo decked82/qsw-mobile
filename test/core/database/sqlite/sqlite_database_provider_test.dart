@@ -24,19 +24,41 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('opens database with version 1 and creates parts table', () async {
+  test('opens database with version 3 and creates required tables', () async {
     final database = await databaseProvider.database;
 
-    expect(database.getVersion(), completion(equals(1)));
+    final version = await database.getVersion();
 
-    final tables = await database.query(
+    expect(version, equals(3));
+
+    final partsTables = await database.query(
       'sqlite_master',
       columns: ['name'],
       where: 'type = ? AND name = ?',
       whereArgs: ['table', 'parts'],
     );
 
-    expect(tables, hasLength(1));
-    expect(tables.first['name'], equals('parts'));
+    final locationsTables = await database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['table', 'locations'],
+    );
+
+    final boxesTables = await database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['table', 'boxes'],
+    );
+
+    expect(partsTables, hasLength(1));
+    expect(partsTables.first['name'], equals('parts'));
+
+    expect(locationsTables, hasLength(1));
+    expect(locationsTables.first['name'], equals('locations'));
+
+    expect(boxesTables, hasLength(1));
+    expect(boxesTables.first['name'], equals('boxes'));
   });
 }
