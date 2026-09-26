@@ -11,6 +11,10 @@ class SqliteMigrations {
     if (version >= 3) {
       await _migrateToV3(db);
     }
+
+    if (version >= 4) {
+      await _migrateToV4(db);
+    }
   }
 
   static Future<void> onUpgrade(
@@ -33,6 +37,9 @@ class SqliteMigrations {
         break;
       case 3:
         await _migrateToV3(db);
+        break;
+      case 4:
+        await _migrateToV4(db);
         break;
     }
   }
@@ -74,6 +81,73 @@ class SqliteMigrations {
         quantity INTEGER NOT NULL,
         location TEXT,
         status TEXT
+      )
+    ''');
+  }
+
+  static Future<void> _migrateToV4(Database db) async {
+    await db.execute('''
+      CREATE TABLE movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_id TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        box_no TEXT NOT NULL,
+        part_no TEXT NOT NULL,
+        from_location TEXT,
+        to_location TEXT,
+        quantity INTEGER NOT NULL,
+        user_id TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_movements_box_no
+      ON movements(box_no)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_movements_part_no
+      ON movements(part_no)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_movements_created_at
+      ON movements(created_at)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE pending_operations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_id TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL,
+        retry_count INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        last_attempt_at TEXT,
+        last_error TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_pending_operations_status
+      ON pending_operations(status)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_pending_operations_created_at
+      ON pending_operations(created_at)
+    ''');
+
+    await db.execute('''
+      CREATE TABLE sync_metadata (
+        entity_type TEXT PRIMARY KEY,
+        last_sync_at TEXT,
+        status TEXT NOT NULL,
+        cursor TEXT
       )
     ''');
   }

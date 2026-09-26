@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "152525399531",
+    "project_id": "qsw-mobile",
+    "storage_bucket": "qsw-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:152525399531:android:3e8b611483b6772613e5ae",
+        "android_client_info": {
+          "package_name": "com.decked.qsw_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCSCNrok-MciEFKFslcXjNLSvv3g4RbiOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -24,12 +24,12 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('opens database with version 3 and creates required tables', () async {
+  test('opens database with version 4 and creates required tables', () async {
     final database = await databaseProvider.database;
 
     final version = await database.getVersion();
 
-    expect(version, equals(3));
+    expect(version, equals(4));
 
     final partsTables = await database.query(
       'sqlite_master',

@@ -22,7 +22,7 @@ class SqliteDatabaseProvider implements DatabaseProvider {
 
     _database = await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: SqliteMigrations.onCreate,
       onUpgrade: SqliteMigrations.onUpgrade,
     );

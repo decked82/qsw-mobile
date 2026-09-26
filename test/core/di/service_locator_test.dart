@@ -8,33 +8,56 @@ void main() {
     databaseFactory = databaseFactoryFfi;
   });
 
-  test('initializes part, location, and box dependencies', () async {
-    final serviceLocator = ServiceLocator.instance;
+  test(
+    'initializes part, location, box, movement, and sync dependencies',
+    () async {
+      final serviceLocator = ServiceLocator.instance;
 
-    await serviceLocator.initialize();
+      await serviceLocator.initialize();
 
-    expect(serviceLocator.databaseProvider, isNotNull);
+      expect(serviceLocator.databaseProvider, isNotNull);
 
-    expect(serviceLocator.partDataSource, isNotNull);
-    expect(serviceLocator.partRepository, isNotNull);
+      expect(serviceLocator.partDataSource, isNotNull);
+      expect(serviceLocator.partRepository, isNotNull);
 
-    expect(serviceLocator.locationDataSource, isNotNull);
-    expect(serviceLocator.locationRepository, isNotNull);
+      expect(serviceLocator.locationDataSource, isNotNull);
+      expect(serviceLocator.locationRepository, isNotNull);
 
-    expect(serviceLocator.boxRepository, isNotNull);
+      expect(serviceLocator.boxRepository, isNotNull);
 
-    expect(serviceLocator.addPart, isNotNull);
-    expect(serviceLocator.getParts, isNotNull);
-    expect(serviceLocator.searchParts, isNotNull);
-    expect(serviceLocator.deletePart, isNotNull);
+      expect(serviceLocator.movementRepository, isNotNull);
 
-    expect(serviceLocator.getBoxByBoxNo, isNotNull);
+      expect(serviceLocator.pendingOperationRepository, isNotNull);
+      expect(serviceLocator.syncMetadataRepository, isNotNull);
 
-    await serviceLocator.databaseProvider.close();
+      expect(serviceLocator.addPart, isNotNull);
+      expect(serviceLocator.getParts, isNotNull);
+      expect(serviceLocator.searchParts, isNotNull);
+      expect(serviceLocator.deletePart, isNotNull);
 
-    final databasePath = await getDatabasesPath();
-    final path = '$databasePath/qsw.db';
+      expect(serviceLocator.getBoxByBoxNo, isNotNull);
 
-    await deleteDatabase(path);
-  });
+      expect(serviceLocator.getMovementById, isNotNull);
+      expect(serviceLocator.getMovementByOperationId, isNotNull);
+      expect(serviceLocator.getMovementsByBoxNo, isNotNull);
+      expect(serviceLocator.getMovementsByPartNo, isNotNull);
+      expect(serviceLocator.saveMovement, isNotNull);
+
+      expect(serviceLocator.getPendingOperations, isNotNull);
+      expect(serviceLocator.getPendingOperationByOperationId, isNotNull);
+      expect(serviceLocator.savePendingOperation, isNotNull);
+      expect(serviceLocator.updatePendingOperationStatus, isNotNull);
+
+      expect(serviceLocator.getSyncMetadata, isNotNull);
+      expect(serviceLocator.saveSyncMetadata, isNotNull);
+      expect(serviceLocator.updateSyncMetadataStatus, isNotNull);
+
+      await serviceLocator.databaseProvider.close();
+
+      final databasePath = await getDatabasesPath();
+      final path = '$databasePath/qsw.db';
+
+      await deleteDatabase(path);
+    },
+  );
 }

@@ -1,0 +1,32 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "qsw-mobile",
+          "appId": "1:152525399531:android:3e8b611483b6772613e5ae",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "qsw-mobile",
+          "configurations": {
+            "android": "1:152525399531:android:3e8b611483b6772613e5ae",
+            "ios": "1:152525399531:ios:184bb10a0962d4ca13e5ae"
+          }
+        }
+      }
+    }
+  },
+  "emulators": {
+    "singleProjectMode": true,
+    "firestore": {
+      "port": 8080
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}
