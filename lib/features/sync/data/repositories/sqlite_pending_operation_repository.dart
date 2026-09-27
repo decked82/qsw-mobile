@@ -55,9 +55,15 @@ class SqlitePendingOperationRepository implements PendingOperationRepository {
 
   @override
   Future<void> save(PendingOperation operation) async {
+    final values = _toMap(operation);
+
+    if (operation.id == 0) {
+      values.remove('id');
+    }
+
     await database.insert(
       'pending_operations',
-      _toMap(operation),
+      values,
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }

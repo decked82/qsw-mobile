@@ -66,9 +66,15 @@ class SqliteMovementRepository implements MovementRepository {
 
   @override
   Future<void> save(Movement movement) async {
+    final values = _toMap(movement);
+
+    if (movement.id == 0) {
+      values.remove('id');
+    }
+
     await database.insert(
       'movements',
-      _toMap(movement),
+      values,
       conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }

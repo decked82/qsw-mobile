@@ -80,6 +80,28 @@ void main() {
       expect(result.lastError, isNull);
     });
 
+    test('save with id 0 lets SQLite generate the primary key', () async {
+      final operation = PendingOperation(
+        id: 0,
+        operationId: 'operation-000',
+        type: 'INBOUND',
+        entityType: 'MOVEMENT',
+        entityId: 'operation-000',
+        payload: '{}',
+        status: PendingOperationStatus.pending,
+        retryCount: 0,
+        createdAt: DateTime(2026, 9, 21, 10, 30),
+      );
+
+      await repository.save(operation);
+
+      final result = await repository.getByOperationId('operation-000');
+
+      expect(result, isNotNull);
+      expect(result!.id, isNot(0));
+      expect(result.operationId, 'operation-000');
+    });
+
     test('returns null when operation does not exist', () async {
       final result = await repository.getById(999);
 

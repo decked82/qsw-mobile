@@ -57,11 +57,7 @@ class SqliteBoxRepository implements BoxRepository {
 
   @override
   Future<void> delete(String boxNo) async {
-    await database.delete(
-      'boxes',
-      where: 'box_no = ?',
-      whereArgs: [boxNo],
-    );
+    await database.delete('boxes', where: 'box_no = ?', whereArgs: [boxNo]);
   }
 
   Box _fromMap(Map<String, Object?> map) {

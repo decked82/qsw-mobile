@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../features/boxes/data/repositories/sqlite_box_repository.dart';
 import '../../features/boxes/domain/use_cases/get_box_by_box_no.dart';
 import '../../features/locations/data/data_sources/sqlite_location_data_source.dart';
@@ -17,6 +19,7 @@ import '../../features/parts/domain/use_cases/add_part.dart';
 import '../../features/parts/domain/use_cases/delete_part.dart';
 import '../../features/parts/domain/use_cases/get_parts.dart';
 import '../../features/parts/domain/use_cases/search_parts.dart';
+import '../../features/sync/data/data_sources/firestore_movement_sync_data_source.dart';
 import '../../features/sync/data/data_sources/not_configured_remote_sync_data_source.dart';
 import '../../features/sync/data/data_sources/remote_sync_data_source.dart';
 import '../../features/sync/data/repositories/sqlite_pending_operation_repository.dart';
@@ -78,34 +81,28 @@ class ServiceLocator {
   late final DeletePart deletePart;
   late final SearchParts searchParts;
 
-  Future<void> initialize() async {
+  Future<void> initialize({FirebaseFirestore? firestore}) async {
     databaseProvider = SqliteDatabaseProvider();
+
+    final database = await databaseProvider.database;
 
     partDataSource = SqlitePartDataSource(databaseProvider);
     partRepository = SqlitePartRepository(partDataSource);
 
-    locationDataSource = SqliteLocationDataSource(
-      await databaseProvider.database,
-    );
+    locationDataSource = SqliteLocationDataSource(database);
     locationRepository = SqliteLocationRepository(locationDataSource);
 
-    boxRepository = SqliteBoxRepository(await databaseProvider.database);
+    boxRepository = SqliteBoxRepository(database);
+    getBoxByBoxNo = GetBoxByBoxNo(boxRepository);
 
-    movementRepository = SqliteMovementRepository(
-      await databaseProvider.database,
-    );
+    movementRepository = SqliteMovementRepository(database);
 
     getMovementById = GetMovementById(movementRepository);
     getMovementByOperationId = GetMovementByOperationId(movementRepository);
     getMovementsByBoxNo = GetMovementsByBoxNo(movementRepository);
     getMovementsByPartNo = GetMovementsByPartNo(movementRepository);
-    saveMovement = SaveMovement(movementRepository);
 
-    pendingOperationRepository = SqlitePendingOperationRepository(
-      await databaseProvider.database,
-    );
-
-    remoteSyncDataSource = const NotConfiguredRemoteSyncDataSource();
+    pendingOperationRepository = SqlitePendingOperationRepository(database);
 
     getPendingOperations = GetPendingOperations(pendingOperationRepository);
     getPendingOperationByOperationId = GetPendingOperationByOperationId(
@@ -116,14 +113,24 @@ class ServiceLocator {
       pendingOperationRepository,
     );
 
+    saveMovement = SaveMovement(
+      movementRepository: movementRepository,
+      pendingOperationRepository: pendingOperationRepository,
+    );
+
+    remoteSyncDataSource = firestore == null
+        ? NotConfiguredRemoteSyncDataSource()
+        : FirestoreMovementSyncDataSource(
+            movementRepository: movementRepository,
+            firestore: firestore,
+          );
+
     syncEngine = SyncEngine(
       pendingOperationRepository: pendingOperationRepository,
       remoteSyncDataSource: remoteSyncDataSource,
     );
 
-    syncMetadataRepository = SqliteSyncMetadataRepository(
-      await databaseProvider.database,
-    );
+    syncMetadataRepository = SqliteSyncMetadataRepository(database);
 
     getSyncMetadata = GetSyncMetadata(syncMetadataRepository);
     saveSyncMetadata = SaveSyncMetadata(syncMetadataRepository);
@@ -133,7 +140,5 @@ class ServiceLocator {
     getParts = GetParts(partRepository);
     searchParts = SearchParts(partRepository);
     deletePart = DeletePart(partRepository);
-
-    getBoxByBoxNo = GetBoxByBoxNo(boxRepository);
   }
 }

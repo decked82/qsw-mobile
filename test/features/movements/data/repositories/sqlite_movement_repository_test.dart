@@ -83,6 +83,27 @@ void main() {
       expect(result.createdAt, DateTime(2026, 9, 21, 10, 30));
     });
 
+    test('save with id 0 lets SQLite generate the primary key', () async {
+      final movement = Movement(
+        id: 0,
+        operationId: 'operation-000',
+        type: MovementType.inbound,
+        boxNo: 'TEST-BOX',
+        partNo: 'TEST-PART',
+        toLocation: 'TEST-LOCATION',
+        quantity: 1,
+        createdAt: DateTime(2026, 9, 21, 10, 30),
+      );
+
+      await repository.save(movement);
+
+      final result = await repository.getByOperationId('operation-000');
+
+      expect(result, isNotNull);
+      expect(result!.id, isNot(0));
+      expect(result.operationId, 'operation-000');
+    });
+
     test('returns null when movement does not exist', () async {
       final result = await repository.getById(999);
 
