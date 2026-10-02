@@ -32,6 +32,27 @@ class AppLocalizations {
 
   String get inventory => _translate(en: 'Inventory', ko: '재고', ru: 'Остатки');
 
+  String get boxNo => _translate(en: 'BOX NO', ko: 'BOX NO', ru: 'BOX NO');
+
+  String get quantity => _translate(en: 'Quantity', ko: '수량', ru: 'Количество');
+
+  String get enterQuantity => _translate(
+    en: 'Enter quantity',
+    ko: '수량을 입력하세요',
+    ru: 'Введите количество',
+  );
+
+  String get location =>
+      _translate(en: 'Location', ko: '위치', ru: 'Местоположение');
+
+  String get enterLocation => _translate(
+    en: 'Enter location',
+    ko: '위치를 입력하세요',
+    ru: 'Введите местоположение',
+  );
+
+  String get save => _translate(en: 'Save', ko: '저장', ru: 'Сохранить');
+
   String get partCodeOrName => _translate(
     en: 'Part Code or Name',
     ko: '부품 코드 또는 이름',
@@ -139,6 +160,12 @@ class AppLocalizations {
     ru: 'Не удалось выполнить поиск деталей: $error',
   );
 
+  String failedToDeletePart(String error) => _translate(
+    en: 'Failed to delete part: $error',
+    ko: '부품 삭제에 실패했습니다: $error',
+    ru: 'Не удалось удалить деталь: $error',
+  );
+
   String get parts => _translate(en: 'Parts', ko: '부품', ru: 'Детали');
 
   String get refresh => _translate(en: 'Refresh', ko: '새로고침', ru: 'Обновить');
@@ -160,12 +187,6 @@ class AppLocalizations {
     en: 'Part deleted successfully',
     ko: '부품이 성공적으로 삭제되었습니다',
     ru: 'Деталь успешно удалена',
-  );
-
-  String failedToDeletePart(String error) => _translate(
-    en: 'Failed to delete part: $error',
-    ko: '부품 삭제에 실패했습니다: $error',
-    ru: 'Не удалось удалить деталь: $error',
   );
 
   String get addPartToSeeItHere => _translate(

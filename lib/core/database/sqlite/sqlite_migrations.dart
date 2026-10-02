@@ -15,6 +15,14 @@ class SqliteMigrations {
     if (version >= 4) {
       await _migrateToV4(db);
     }
+
+    if (version >= 5) {
+      await _migrateToV5(db);
+    }
+
+    if (version >= 6) {
+      await _migrateToV6(db);
+    }
   }
 
   static Future<void> onUpgrade(
@@ -40,6 +48,12 @@ class SqliteMigrations {
         break;
       case 4:
         await _migrateToV4(db);
+        break;
+      case 5:
+        await _migrateToV5(db);
+        break;
+      case 6:
+        await _migrateToV6(db);
         break;
     }
   }
@@ -149,6 +163,47 @@ class SqliteMigrations {
         status TEXT NOT NULL,
         cursor TEXT
       )
+    ''');
+  }
+
+  static Future<void> _migrateToV5(Database db) async {
+    await db.execute('''
+      CREATE TABLE box_number_ranges (
+        date_key TEXT PRIMARY KEY,
+        range_start INTEGER NOT NULL,
+        range_end INTEGER NOT NULL,
+        next_number INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  static Future<void> _migrateToV6(Database db) async {
+    await db.execute('''
+      CREATE TABLE inbound_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operation_id TEXT NOT NULL UNIQUE,
+        box_no TEXT NOT NULL,
+        part_no TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        location TEXT NOT NULL,
+        user_id TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_inbound_transactions_box_no
+      ON inbound_transactions(box_no)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_inbound_transactions_part_no
+      ON inbound_transactions(part_no)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX idx_inbound_transactions_created_at
+      ON inbound_transactions(created_at)
     ''');
   }
 }

@@ -1,16 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../features/boxes/data/data_sources/box_number_data_source.dart';
+import '../../features/boxes/data/data_sources/firestore_box_number_data_source.dart';
+import '../../features/boxes/data/data_sources/not_configured_box_number_data_source.dart';
+import '../../features/boxes/data/repositories/sqlite_box_number_range_repository.dart';
 import '../../features/boxes/data/repositories/sqlite_box_repository.dart';
+import '../../features/boxes/domain/repositories/box_number_range_repository.dart';
+import '../../features/boxes/domain/services/box_number_generator.dart';
 import '../../features/boxes/domain/use_cases/get_box_by_box_no.dart';
 import '../../features/locations/data/data_sources/sqlite_location_data_source.dart';
 import '../../features/locations/data/repositories/sqlite_location_repository.dart';
 import '../../features/locations/domain/repositories/location_repository.dart';
+import '../../features/movements/data/repositories/sqlite_inbound_transaction_repository.dart';
 import '../../features/movements/data/repositories/sqlite_movement_repository.dart';
+import '../../features/movements/domain/repositories/inbound_transaction_repository.dart';
 import '../../features/movements/domain/repositories/movement_repository.dart';
 import '../../features/movements/domain/use_cases/get_movement_by_id.dart';
 import '../../features/movements/domain/use_cases/get_movement_by_operation_id.dart';
 import '../../features/movements/domain/use_cases/get_movements_by_box_no.dart';
 import '../../features/movements/domain/use_cases/get_movements_by_part_no.dart';
+import '../../features/movements/domain/use_cases/save_inbound_movement.dart';
+import '../../features/movements/domain/use_cases/save_inbound_transaction.dart';
 import '../../features/movements/domain/use_cases/save_movement.dart';
 import '../../features/parts/data/data_sources/sqlite_part_data_source.dart';
 import '../../features/parts/data/repositories/sqlite_part_repository.dart';
@@ -19,7 +29,9 @@ import '../../features/parts/domain/use_cases/add_part.dart';
 import '../../features/parts/domain/use_cases/delete_part.dart';
 import '../../features/parts/domain/use_cases/get_parts.dart';
 import '../../features/parts/domain/use_cases/search_parts.dart';
+import '../../features/sync/data/data_sources/firestore_inbound_transaction_sync_data_source.dart';
 import '../../features/sync/data/data_sources/firestore_movement_sync_data_source.dart';
+import '../../features/sync/data/data_sources/firestore_remote_sync_data_source.dart';
 import '../../features/sync/data/data_sources/not_configured_remote_sync_data_source.dart';
 import '../../features/sync/data/data_sources/remote_sync_data_source.dart';
 import '../../features/sync/data/repositories/sqlite_pending_operation_repository.dart';
@@ -50,15 +62,21 @@ class ServiceLocator {
   late final LocationRepository locationRepository;
 
   late final SqliteBoxRepository boxRepository;
+  late final BoxNumberRangeRepository boxNumberRangeRepository;
+  late final BoxNumberDataSource boxNumberDataSource;
+  late final BoxNumberGenerator boxNumberGenerator;
   late final GetBoxByBoxNo getBoxByBoxNo;
 
   late final MovementRepository movementRepository;
+  late final InboundTransactionRepository inboundTransactionRepository;
 
   late final GetMovementById getMovementById;
   late final GetMovementByOperationId getMovementByOperationId;
   late final GetMovementsByBoxNo getMovementsByBoxNo;
   late final GetMovementsByPartNo getMovementsByPartNo;
   late final SaveMovement saveMovement;
+  late final SaveInboundMovement saveInboundMovement;
+  late final SaveInboundTransaction saveInboundTransaction;
 
   late final PendingOperationRepository pendingOperationRepository;
 
@@ -93,9 +111,20 @@ class ServiceLocator {
     locationRepository = SqliteLocationRepository(locationDataSource);
 
     boxRepository = SqliteBoxRepository(database);
+    boxNumberRangeRepository = SqliteBoxNumberRangeRepository(database);
     getBoxByBoxNo = GetBoxByBoxNo(boxRepository);
 
+    boxNumberDataSource = firestore == null
+        ? const NotConfiguredBoxNumberDataSource()
+        : FirestoreBoxNumberDataSource(firestore: firestore);
+
+    boxNumberGenerator = BoxNumberGenerator(
+      dataSource: boxNumberDataSource,
+      rangeRepository: boxNumberRangeRepository,
+    );
+
     movementRepository = SqliteMovementRepository(database);
+    inboundTransactionRepository = SqliteInboundTransactionRepository(database);
 
     getMovementById = GetMovementById(movementRepository);
     getMovementByOperationId = GetMovementByOperationId(movementRepository);
@@ -118,11 +147,28 @@ class ServiceLocator {
       pendingOperationRepository: pendingOperationRepository,
     );
 
+    saveInboundMovement = SaveInboundMovement(
+      database: database,
+      boxNumberGenerator: boxNumberGenerator,
+    );
+
+    saveInboundTransaction = SaveInboundTransaction(
+      database: database,
+      boxNumberGenerator: boxNumberGenerator,
+    );
+
     remoteSyncDataSource = firestore == null
         ? NotConfiguredRemoteSyncDataSource()
-        : FirestoreMovementSyncDataSource(
-            movementRepository: movementRepository,
-            firestore: firestore,
+        : FirestoreRemoteSyncDataSource(
+            movementSyncDataSource: FirestoreMovementSyncDataSource(
+              movementRepository: movementRepository,
+              firestore: firestore,
+            ),
+            inboundTransactionSyncDataSource:
+                FirestoreInboundTransactionSyncDataSource(
+                  inboundTransactionRepository: inboundTransactionRepository,
+                  firestore: firestore,
+                ),
           );
 
     syncEngine = SyncEngine(

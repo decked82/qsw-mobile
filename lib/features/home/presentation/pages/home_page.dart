@@ -74,7 +74,14 @@ class _HomePageState extends State<HomePage> {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.25,
                   children: [
-                    _HomeMenuButton(icon: Icons.input, title: l10n.receiving),
+                    _HomeMenuButton(
+                      key: const Key('receiving_button'),
+                      icon: Icons.input,
+                      title: l10n.receiving,
+                      onTap: () {
+                        Navigator.of(context).pushNamed(AppRouter.inbound);
+                      },
+                    ),
                     _HomeMenuButton(icon: Icons.output, title: l10n.shipping),
                     _HomeMenuButton(
                       key: const Key('part_search_button'),

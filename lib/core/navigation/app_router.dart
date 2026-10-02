@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/movements/presentation/pages/inbound_page.dart';
 import '../../features/parts/presentation/pages/add_part_page.dart';
 import '../../features/parts/presentation/pages/part_search_page.dart';
 import '../../features/parts/presentation/pages/parts_page.dart';
@@ -10,6 +11,7 @@ abstract final class AppRouter {
   static const String addPart = '/parts/add';
   static const String partSearch = '/parts/search';
   static const String parts = '/parts';
+  static const String inbound = '/movements/inbound';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -34,6 +36,12 @@ abstract final class AppRouter {
       case parts:
         return MaterialPageRoute<void>(
           builder: (_) => PartsPage(),
+          settings: settings,
+        );
+
+      case inbound:
+        return MaterialPageRoute<void>(
+          builder: (_) => const InboundPage(),
           settings: settings,
         );
 

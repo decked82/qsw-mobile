@@ -4,9 +4,9 @@ import '../../domain/entities/movement.dart';
 import '../../domain/repositories/movement_repository.dart';
 
 class SqliteMovementRepository implements MovementRepository {
-  final Database database;
-
   SqliteMovementRepository(this.database);
+
+  final DatabaseExecutor database;
 
   @override
   Future<Movement?> getById(int id) async {

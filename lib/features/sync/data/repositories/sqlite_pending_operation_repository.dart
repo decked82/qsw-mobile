@@ -6,7 +6,7 @@ import '../../domain/repositories/pending_operation_repository.dart';
 class SqlitePendingOperationRepository implements PendingOperationRepository {
   const SqlitePendingOperationRepository(this.database);
 
-  final Database database;
+  final DatabaseExecutor database;
 
   @override
   Future<PendingOperation?> getById(int id) async {

@@ -5,5 +5,13 @@ service cloud.firestore {
     match /movements/{movementId} {
       allow read, write: if true;
     }
+
+    match /inbound_transactions/{transactionId} {
+      allow read, write: if true;
+    }
+
+    match /box_sequences/{dateKey} {
+      allow read, write: if true;
+    }
   }
 }

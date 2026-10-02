@@ -24,12 +24,12 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('opens database with version 4 and creates required tables', () async {
+  test('opens database with version 6 and creates required tables', () async {
     final database = await databaseProvider.database;
 
     final version = await database.getVersion();
 
-    expect(version, equals(4));
+    expect(version, equals(6));
 
     final partsTables = await database.query(
       'sqlite_master',
@@ -52,6 +52,20 @@ void main() {
       whereArgs: ['table', 'boxes'],
     );
 
+    final boxNumberRangesTables = await database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['table', 'box_number_ranges'],
+    );
+
+    final inboundTransactionsTables = await database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['table', 'inbound_transactions'],
+    );
+
     expect(partsTables, hasLength(1));
     expect(partsTables.first['name'], equals('parts'));
 
@@ -60,5 +74,14 @@ void main() {
 
     expect(boxesTables, hasLength(1));
     expect(boxesTables.first['name'], equals('boxes'));
+
+    expect(boxNumberRangesTables, hasLength(1));
+    expect(boxNumberRangesTables.first['name'], equals('box_number_ranges'));
+
+    expect(inboundTransactionsTables, hasLength(1));
+    expect(
+      inboundTransactionsTables.first['name'],
+      equals('inbound_transactions'),
+    );
   });
 }
