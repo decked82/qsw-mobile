@@ -19,7 +19,6 @@ import '../../features/movements/domain/use_cases/get_movement_by_id.dart';
 import '../../features/movements/domain/use_cases/get_movement_by_operation_id.dart';
 import '../../features/movements/domain/use_cases/get_movements_by_box_no.dart';
 import '../../features/movements/domain/use_cases/get_movements_by_part_no.dart';
-import '../../features/movements/domain/use_cases/save_inbound_movement.dart';
 import '../../features/movements/domain/use_cases/save_inbound_transaction.dart';
 import '../../features/movements/domain/use_cases/save_movement.dart';
 import '../../features/parts/data/data_sources/sqlite_part_data_source.dart';
@@ -75,7 +74,6 @@ class ServiceLocator {
   late final GetMovementsByBoxNo getMovementsByBoxNo;
   late final GetMovementsByPartNo getMovementsByPartNo;
   late final SaveMovement saveMovement;
-  late final SaveInboundMovement saveInboundMovement;
   late final SaveInboundTransaction saveInboundTransaction;
 
   late final PendingOperationRepository pendingOperationRepository;
@@ -145,11 +143,6 @@ class ServiceLocator {
     saveMovement = SaveMovement(
       movementRepository: movementRepository,
       pendingOperationRepository: pendingOperationRepository,
-    );
-
-    saveInboundMovement = SaveInboundMovement(
-      database: database,
-      boxNumberGenerator: boxNumberGenerator,
     );
 
     saveInboundTransaction = SaveInboundTransaction(
