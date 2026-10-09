@@ -204,6 +204,37 @@ void main() {
     expect(pendingOperation.status, PendingOperationStatus.pending);
   });
 
+  test('rolls back all changes when saving box fails', () async {
+    await database.execute('''
+      CREATE TRIGGER fail_box_insert
+      BEFORE INSERT ON boxes
+      BEGIN
+        SELECT RAISE(ABORT, 'forced box insert failure');
+      END
+    ''');
+
+    await expectLater(
+      saveInboundTransaction(
+        partNo: 'PART-FAIL',
+        quantity: 10,
+        location: 'A-01-01',
+      ),
+      throwsA(anything),
+    );
+
+    final transactions = await database.query('inbound_transactions');
+    final boxes = await database.query('boxes');
+    final pendingOperations = await database.query('pending_operations');
+    final range = await rangeRepository.getByDateKey('260927');
+
+    expect(transactions, isEmpty);
+    expect(boxes, isEmpty);
+    expect(pendingOperations, isEmpty);
+
+    expect(range, isNotNull);
+    expect(range!.nextNumber, 1);
+  });
+
   test('uses the same date in generated BOX NO', () async {
     final transaction = await saveInboundTransaction(
       partNo: 'PART-001',
