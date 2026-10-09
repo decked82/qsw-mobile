@@ -4,11 +4,13 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../boxes/data/repositories/sqlite_box_number_range_repository.dart';
+import '../../../boxes/data/repositories/sqlite_box_repository.dart';
+import '../../../boxes/domain/entities/box.dart';
 import '../../../boxes/domain/services/box_number_generator.dart';
 import '../../../sync/data/repositories/sqlite_pending_operation_repository.dart';
+import '../../../sync/domain/entities/pending_operation.dart';
 import '../../data/repositories/sqlite_inbound_transaction_repository.dart';
 import '../entities/inbound_transaction.dart';
-import '../../../sync/domain/entities/pending_operation.dart';
 
 class SaveInboundTransaction {
   SaveInboundTransaction({
@@ -60,6 +62,8 @@ class SaveInboundTransaction {
     final createdAt = _now();
     final dateKey = boxNumberGenerator.dateKeyFor(createdAt);
 
+    // Reserve a range remotely if the local device has no available range.
+    // Reserving a range does not consume an individual box number.
     await boxNumberGenerator.getOrReserveRangeForDate(dateKey);
 
     late InboundTransaction savedTransaction;
@@ -67,6 +71,7 @@ class SaveInboundTransaction {
     await database.transaction((transaction) async {
       final rangeRepository = SqliteBoxNumberRangeRepository(transaction);
       final inboundRepository = SqliteInboundTransactionRepository(transaction);
+      final boxRepository = SqliteBoxRepository(transaction);
       final pendingOperationRepository = SqlitePendingOperationRepository(
         transaction,
       );
@@ -85,15 +90,9 @@ class SaveInboundTransaction {
       }
 
       final sequence = range.nextNumber;
-
       final boxNo = boxNumberGenerator.formatBoxNumber(
         dateKey: dateKey,
         sequence: sequence,
-      );
-
-      await rangeRepository.updateNextNumber(
-        dateKey: dateKey,
-        nextNumber: sequence + 1,
       );
 
       final inboundTransaction = InboundTransaction(
@@ -107,9 +106,16 @@ class SaveInboundTransaction {
         createdAt: createdAt,
       );
 
-      await inboundRepository.save(inboundTransaction);
+      final box = Box(
+        boxNo: boxNo,
+        partNo: normalizedPartNo,
+        quantity: quantity,
+        location: normalizedLocation,
+        status: 'IN_STOCK',
+      );
 
-      final pendingOperation = PendingOperationPayload(
+      final pendingOperation = PendingOperation(
+        id: 0,
         operationId: inboundTransaction.operationId,
         type: 'INBOUND',
         entityType: 'INBOUND_TRANSACTION',
@@ -123,48 +129,25 @@ class SaveInboundTransaction {
           'userId': inboundTransaction.userId,
           'createdAt': inboundTransaction.createdAt.toIso8601String(),
         }),
+        status: PendingOperationStatus.pending,
+        retryCount: 0,
         createdAt: inboundTransaction.createdAt,
       );
 
-      await pendingOperationRepository.save(
-        pendingOperation.toPendingOperation(),
+      // All local changes commit together or roll back together.
+      await inboundRepository.save(inboundTransaction);
+      await boxRepository.save(box);
+      await pendingOperationRepository.save(pendingOperation);
+
+      // Consume the sequence only after the records have been saved.
+      await rangeRepository.updateNextNumber(
+        dateKey: dateKey,
+        nextNumber: sequence + 1,
       );
 
       savedTransaction = inboundTransaction;
     });
 
     return savedTransaction;
-  }
-}
-
-class PendingOperationPayload {
-  const PendingOperationPayload({
-    required this.operationId,
-    required this.type,
-    required this.entityType,
-    required this.entityId,
-    required this.payload,
-    required this.createdAt,
-  });
-
-  final String operationId;
-  final String type;
-  final String entityType;
-  final String entityId;
-  final String payload;
-  final DateTime createdAt;
-
-  PendingOperation toPendingOperation() {
-    return PendingOperation(
-      id: 0,
-      operationId: operationId,
-      type: type,
-      entityType: entityType,
-      entityId: entityId,
-      payload: payload,
-      status: PendingOperationStatus.pending,
-      retryCount: 0,
-      createdAt: createdAt,
-    );
   }
 }

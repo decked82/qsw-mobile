@@ -4,7 +4,7 @@ import '../../domain/entities/box.dart';
 import '../../domain/repositories/box_repository.dart';
 
 class SqliteBoxRepository implements BoxRepository {
-  final Database database;
+  final DatabaseExecutor database;
 
   SqliteBoxRepository(this.database);
 

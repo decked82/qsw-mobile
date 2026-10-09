@@ -63,6 +63,16 @@ void main() {
     ''');
 
     await database.execute('''
+      CREATE TABLE boxes (
+        box_no TEXT PRIMARY KEY,
+        part_no TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        location TEXT,
+        status TEXT
+      )
+    ''');
+
+    await database.execute('''
       CREATE TABLE pending_operations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         operation_id TEXT NOT NULL UNIQUE,
@@ -89,7 +99,6 @@ void main() {
     ''');
 
     rangeRepository = SqliteBoxNumberRangeRepository(database);
-
     boxNumberDataSource = FakeBoxNumberDataSource();
 
     boxNumberGenerator = BoxNumberGenerator(
@@ -110,7 +119,7 @@ void main() {
     await database.close();
   });
 
-  test('saves inbound transaction with generated BOX NO', () async {
+  test('saves inbound transaction and box with generated BOX NO', () async {
     final transaction = await saveInboundTransaction(
       partNo: 'T46053-0290',
       quantity: 400,
@@ -124,6 +133,19 @@ void main() {
     expect(transaction.quantity, 400);
     expect(transaction.location, 'A-01-03');
     expect(transaction.userId, isNull);
+
+    final boxes = await database.query(
+      'boxes',
+      where: 'box_no = ?',
+      whereArgs: [transaction.boxNo],
+    );
+
+    expect(boxes, hasLength(1));
+    expect(boxes.single['box_no'], transaction.boxNo);
+    expect(boxes.single['part_no'], 'T46053-0290');
+    expect(boxes.single['quantity'], 400);
+    expect(boxes.single['location'], 'A-01-03');
+    expect(boxes.single['status'], 'IN_STOCK');
   });
 
   test('increments BOX NO after successful save', () async {
@@ -156,7 +178,6 @@ void main() {
     );
 
     final transactionRepository = SqliteInboundTransactionRepository(database);
-
     final pendingOperationRepository = SqlitePendingOperationRepository(
       database,
     );
