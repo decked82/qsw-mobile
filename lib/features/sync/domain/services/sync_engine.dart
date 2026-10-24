@@ -163,8 +163,10 @@ class SyncEngine {
         lastError: null,
       );
     } catch (_) {
-      // Do not send an operation if claiming it locally failed.
-      // Leave it eligible for a later sync attempt.
+      // The operation may have been persisted as PROCESSING even though
+      // the status update reported an error. Recover it before the next
+      // queue read so the same engine can retry it safely.
+      _processingRecoveryCompleted = false;
       return true;
     }
 

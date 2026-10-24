@@ -154,6 +154,56 @@ void main() {
       },
     );
 
+    test(
+      'recovers PROCESSING when claiming status write fails after persistence',
+      () async {
+        final operation = _createOperation(
+          id: 1,
+          operationId: 'operation-processing-after-write-failure',
+          status: PendingOperationStatus.pending,
+          retryCount: 0,
+        );
+
+        final repository =
+            FakePendingOperationRepository(operations: [operation])
+              ..statusUpdateFailuresAfterWriteRemaining = {
+                PendingOperationStatus.processing: 1,
+              };
+
+        final remote = FakeRemoteSyncDataSource();
+        final engine = SyncEngine(
+          pendingOperationRepository: repository,
+          remoteSyncDataSource: remote,
+          automaticRetry: true,
+          initialRetryDelay: const Duration(milliseconds: 5),
+          maxRetryDelay: const Duration(milliseconds: 10),
+        );
+
+        try {
+          await engine.syncPendingOperations();
+
+          // The first attempt persisted PROCESSING but did not send remotely.
+          expect(
+            repository.operations.single.status,
+            PendingOperationStatus.processing,
+          );
+          expect(remote.syncedOperations, isEmpty);
+
+          // The retry must recover PROCESSING and then sync the operation.
+          await Future<void>.delayed(const Duration(milliseconds: 60));
+
+          expect(repository.recoveryCallCount, greaterThanOrEqualTo(2));
+          expect(remote.syncedOperations, hasLength(1));
+          expect(
+            repository.operations.single.status,
+            PendingOperationStatus.synced,
+          );
+        } finally {
+          engine.dispose();
+        }
+      },
+    );
+
     test('requeues operation when saving SYNCED status fails', () async {
       final operation = _createOperation(
         id: 1,
@@ -830,6 +880,7 @@ class FakePendingOperationRepository implements PendingOperationRepository {
   int getPendingFailuresRemaining = 0;
   int recoveryFailuresRemaining = 0;
   Map<PendingOperationStatus, int> statusUpdateFailuresRemaining = {};
+  Map<PendingOperationStatus, int> statusUpdateFailuresAfterWriteRemaining = {};
 
   @override
   Future<PendingOperation?> getById(int id) async {
@@ -915,6 +966,14 @@ class FakePendingOperationRepository implements PendingOperationRepository {
       lastAttemptAt: lastAttemptAt ?? current.lastAttemptAt,
       lastError: lastError,
     );
+
+    final failuresAfterWrite =
+        statusUpdateFailuresAfterWriteRemaining[status] ?? 0;
+
+    if (failuresAfterWrite > 0) {
+      statusUpdateFailuresAfterWriteRemaining[status] = failuresAfterWrite - 1;
+      throw StateError('Simulated status update failure after write: $status');
+    }
   }
 
   @override

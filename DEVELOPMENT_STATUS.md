@@ -102,7 +102,7 @@ Important limitations or unverified behavior:
   failures, and Firestore document idempotency when the remote write
   succeeds but the local SYNCED update fails.
 - The full test suite and static analyzer passed on 2026-10-24:
-  159 tests passed and flutter analyze reported no issues.
+  160 tests passed and flutter analyze reported no issues.
 - Real-device behavior under network loss, forced process termination,
   and subsequent app restart has not been verified in this checkpoint.
 - Real-device barcode/QR scanning has not been implemented in the inspected UI.
@@ -110,7 +110,7 @@ Important limitations or unverified behavior:
 - The Inventory home-page button currently opens the parts page; a separate inventory workflow is not established.
 - Safe multi-user Firestore security rules have not been implemented. Existing rules permit unrestricted reads and writes and are unsafe for production.
 - Last recorded validation on 2026-10-24: formatting, static analysis,
-  and the full test suite passed (159 tests). Re-run validation after
+  and the full test suite passed (160 tests). Re-run validation after
   subsequent code changes. Android APK build status is not confirmed.
 
 ### Roadmap
@@ -234,7 +234,7 @@ and covered by automated tests.
 Last recorded validation on 2026-10-24:
 - `dart format lib test`: 114 files, no formatting changes.
 - `flutter analyze`: no issues found.
-- `flutter test`: 159 tests passed.
+- `flutter test`: 160 tests passed.
 - `git diff --check`: passed.
 - Android APK build: not confirmed in this checkpoint.
 
