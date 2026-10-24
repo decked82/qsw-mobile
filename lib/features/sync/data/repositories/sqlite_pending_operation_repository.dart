@@ -46,7 +46,12 @@ class SqlitePendingOperationRepository implements PendingOperationRepository {
       'pending_operations',
       where: 'status IN (?, ?)',
       whereArgs: ['PENDING', 'FAILED'],
-      orderBy: 'created_at ASC',
+      orderBy: '''
+        CASE WHEN status = 'PENDING' THEN 0 ELSE 1 END ASC,
+        CASE WHEN status = 'PENDING' THEN created_at END ASC,
+        CASE WHEN status = 'FAILED' THEN last_attempt_at END ASC,
+        created_at ASC
+      ''',
       limit: limit,
     );
 
@@ -154,5 +159,15 @@ class SqlitePendingOperationRepository implements PendingOperationRepository {
       default:
         throw StateError('Unknown pending operation status: $value');
     }
+  }
+
+  @override
+  Future<void> recoverProcessingOperations() async {
+    await database.update(
+      'pending_operations',
+      {'status': 'PENDING'},
+      where: 'status = ?',
+      whereArgs: ['PROCESSING'],
+    );
   }
 }

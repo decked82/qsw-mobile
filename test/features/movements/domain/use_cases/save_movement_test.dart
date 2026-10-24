@@ -67,6 +67,9 @@ class _FakePendingOperationRepository implements PendingOperationRepository {
     String? lastError,
     int? retryCount,
   }) async {}
+
+  @override
+  Future<void> recoverProcessingOperations() async {}
 }
 
 void main() {

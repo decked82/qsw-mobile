@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/localization/app_localizations.dart';
+import 'core/di/service_locator.dart';
 import 'core/localization/locale_storage.dart';
 import 'core/navigation/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -23,7 +25,7 @@ class QswApp extends StatefulWidget {
   State<QswApp> createState() => QswAppState();
 }
 
-class QswAppState extends State<QswApp> {
+class QswAppState extends State<QswApp> with WidgetsBindingObserver {
   final LocaleStorage _localeStorage = LocaleStorage();
 
   Locale? _locale;
@@ -34,8 +36,32 @@ class QswAppState extends State<QswApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     _locale = widget.locale;
     _loadLocale();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncPendingOperations());
+    }
+  }
+
+  Future<void> _syncPendingOperations() async {
+    try {
+      await ServiceLocator.instance.syncEngine.syncPendingOperations();
+    } catch (_) {
+      // Lifecycle sync must not interfere with application usage.
+      // A later resume or another sync trigger can retry.
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadLocale() async {

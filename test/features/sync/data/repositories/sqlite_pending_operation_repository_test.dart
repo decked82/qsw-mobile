@@ -190,6 +190,83 @@ void main() {
       expect(result[1].operationId, 'operation-003');
     });
 
+    test(
+      'recovers processing operations to pending without changing other statuses',
+      () async {
+        final processing = PendingOperation(
+          id: 1,
+          operationId: 'recovery-processing',
+          type: 'INBOUND',
+          entityType: 'MOVEMENT',
+          entityId: '1',
+          payload: '{}',
+          status: PendingOperationStatus.processing,
+          retryCount: 2,
+          createdAt: DateTime(2026, 9, 21, 10, 30),
+          lastAttemptAt: DateTime(2026, 9, 21, 10, 31),
+          lastError: null,
+        );
+
+        final pending = PendingOperation(
+          id: 2,
+          operationId: 'recovery-pending',
+          type: 'INBOUND',
+          entityType: 'MOVEMENT',
+          entityId: '2',
+          payload: '{}',
+          status: PendingOperationStatus.pending,
+          retryCount: 0,
+          createdAt: DateTime(2026, 9, 21, 10, 32),
+        );
+
+        final failed = PendingOperation(
+          id: 3,
+          operationId: 'recovery-failed',
+          type: 'OUTBOUND',
+          entityType: 'MOVEMENT',
+          entityId: '3',
+          payload: '{}',
+          status: PendingOperationStatus.failed,
+          retryCount: 1,
+          createdAt: DateTime(2026, 9, 21, 10, 33),
+          lastError: 'Network unavailable',
+        );
+
+        final synced = PendingOperation(
+          id: 4,
+          operationId: 'recovery-synced',
+          type: 'MOVE',
+          entityType: 'MOVEMENT',
+          entityId: '4',
+          payload: '{}',
+          status: PendingOperationStatus.synced,
+          retryCount: 0,
+          createdAt: DateTime(2026, 9, 21, 10, 34),
+        );
+
+        await repository.save(processing);
+        await repository.save(pending);
+        await repository.save(failed);
+        await repository.save(synced);
+
+        await repository.recoverProcessingOperations();
+
+        final recovered = await repository.getById(1);
+        final unchangedPending = await repository.getById(2);
+        final unchangedFailed = await repository.getById(3);
+        final unchangedSynced = await repository.getById(4);
+
+        expect(recovered?.status, PendingOperationStatus.pending);
+        expect(recovered?.retryCount, 2);
+        expect(recovered?.lastAttemptAt, processing.lastAttemptAt);
+
+        expect(unchangedPending?.status, PendingOperationStatus.pending);
+        expect(unchangedFailed?.status, PendingOperationStatus.failed);
+        expect(unchangedFailed?.lastError, 'Network unavailable');
+        expect(unchangedSynced?.status, PendingOperationStatus.synced);
+      },
+    );
+
     test('respects pending operation limit', () async {
       for (var i = 1; i <= 3; i++) {
         await repository.save(
@@ -212,6 +289,43 @@ void main() {
       expect(result, hasLength(2));
       expect(result[0].operationId, 'operation-001');
       expect(result[1].operationId, 'operation-002');
+    });
+
+    test('returns pending operations before failed operations', () async {
+      await repository.save(
+        PendingOperation(
+          id: 1,
+          operationId: 'old-failed',
+          type: 'INBOUND',
+          entityType: 'MOVEMENT',
+          entityId: '1',
+          payload: '{}',
+          status: PendingOperationStatus.failed,
+          retryCount: 3,
+          createdAt: DateTime(2026, 9, 21, 10, 30),
+          lastAttemptAt: DateTime(2026, 9, 21, 10, 40),
+          lastError: 'Network unavailable',
+        ),
+      );
+
+      await repository.save(
+        PendingOperation(
+          id: 2,
+          operationId: 'new-pending',
+          type: 'INBOUND',
+          entityType: 'MOVEMENT',
+          entityId: '2',
+          payload: '{}',
+          status: PendingOperationStatus.pending,
+          retryCount: 0,
+          createdAt: DateTime(2026, 9, 21, 10, 35),
+        ),
+      );
+
+      final result = await repository.getPending(limit: 1);
+
+      expect(result, hasLength(1));
+      expect(result.single.operationId, 'new-pending');
     });
 
     test('updates operation status to processing', () async {

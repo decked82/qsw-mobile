@@ -86,32 +86,62 @@ Implemented or present in the codebase:
 - Automated tests for important database, inbound transaction, and synchronization behavior.
 
 Important limitations or unverified behavior:
-- Recovery of operations left in PROCESSING after app termination has not been established.
-- Sync startup and retry behavior across app launches must be inspected.
+- Before reading the pending queue, SyncEngine recovers stale PROCESSING
+  operations to PENDING. If a local status write can leave an operation in
+  PROCESSING, recovery is retried on the next sync cycle in the same engine.
+- Startup synchronization runs asynchronously after runApp().
+- A sync attempt is triggered after a successful inbound save.
+- App-resume synchronization is implemented.
+- The app's SyncEngine retries failed or locally retryable operations
+  in-process with exponential backoff, starting at 30 seconds and capped
+  at 15 minutes. Automatic retries also cover pending-queue read failures;
+  the current sync call still propagates the original error. This does not
+  provide OS-managed background execution when the app process is terminated.
+- Automated tests cover PROCESSING recovery, FAILED-operation retry,
+  retry handling after local status-write failures and pending-queue read
+  failures, and Firestore document idempotency when the remote write
+  succeeds but the local SYNCED update fails.
+- The full test suite and static analyzer passed on 2026-10-24:
+  159 tests passed and flutter analyze reported no issues.
+- Real-device behavior under network loss, forced process termination,
+  and subsequent app restart has not been verified in this checkpoint.
 - Real-device barcode/QR scanning has not been implemented in the inspected UI.
 - The Shipping home-page button has no navigation handler.
 - The Inventory home-page button currently opens the parts page; a separate inventory workflow is not established.
 - Safe multi-user Firestore security rules have not been implemented. Existing rules permit unrestricted reads and writes and are unsafe for production.
-- Current full test-suite, analyzer, and APK build status must be verified after subsequent changes.
+- Last recorded validation on 2026-10-24: formatting, static analysis,
+  and the full test suite passed (159 tests). Re-run validation after
+  subsequent code changes. Android APK build status is not confirmed.
 
 ### Roadmap
 
 #### Phase 1 — Make local-to-Firestore synchronization reliable
-Priority: NEXT
+Priority: IN PROGRESS
 
-1. Inspect main.dart, ServiceLocator, SyncEngine call sites, and app lifecycle handling.
-2. Establish when synchronization starts: app launch, inbound save, app resume, or other triggers.
-3. Define and implement recovery for stale PROCESSING operations after interruption.
-4. Verify retries for FAILED operations and behavior when connectivity or Firestore requests fail.
-5. Verify idempotent retries when the Firestore write succeeds but the local operation is not marked SYNCED.
-6. Add or update automated tests for recovery and retry scenarios.
-7. Run formatting, static analysis, and the full test suite.
+1. [x] Inspect synchronization startup, dependency registration,
+   call sites, and app lifecycle handling.
+2. [x] Establish synchronization triggers: app launch, successful
+   inbound save, and app resume.
+3. [x] Implement recovery of stale PROCESSING operations and test
+   the SQLite repository and SyncEngine behavior.
+4. [x] Verify FAILED-operation retry behavior and error handling
+   using automated tests.
+5. [x] Verify idempotent Firestore retries when a remote write
+   succeeds but the local operation is not marked SYNCED.
+6. [x] Add automated tests for recovery scenarios.
+7. [x] Run formatting, static analysis, and the full test suite.
 
 Acceptance criteria:
-- A process interruption does not permanently strand an operation in PROCESSING.
-- Failed operations can be retried without creating duplicate business documents.
-- One failed operation does not prevent subsequent operations from being processed.
-- Relevant tests pass and the result is documented.
+- Automated tests verify recovery of stale PROCESSING operations on a later
+  sync cycle, including recoverable local status-write failures.
+- Automated tests verify retries for failed operations and Firestore
+  idempotency when the remote write succeeds but the local SYNCED update fails.
+- One failed operation does not prevent subsequent operations from being
+  processed, as verified by the relevant automated tests.
+- Relevant tests pass and the results are documented.
+- Real-device behavior under network loss and process termination is tracked
+  separately and must be verified before declaring synchronization fully
+  reliable in production.
 
 #### Phase 2 — Complete inbound workflow and barcode/QR scanning
 
@@ -197,17 +227,28 @@ Acceptance criteria:
 
 ### Exact continuation point
 
-The next task is Phase 1, step 1: inspect synchronization startup and lifecycle behavior.
+Synchronization startup, app lifecycle triggers, retry behavior,
+Firestore idempotency, and PROCESSING recovery have been inspected
+and covered by automated tests.
 
-Inspect:
-- lib/main.dart
-- lib/core/di/service_locator.dart
-- lib/features/sync/domain/services/sync_engine.dart
-- all Dart call sites of syncPendingOperations and SyncEngine
-- any app lifecycle observers
+Last recorded validation on 2026-10-24:
+- `dart format lib test`: 114 files, no formatting changes.
+- `flutter analyze`: no issues found.
+- `flutter test`: 159 tests passed.
+- `git diff --check`: passed.
+- Android APK build: not confirmed in this checkpoint.
 
-Then determine the smallest safe change needed to recover stale PROCESSING operations. Do not start barcode scanning or shipping until the synchronization recovery plan is understood and the current task is verified.
+Real-device verification remains outstanding for network loss,
+forced process termination, and recovery after app restart.
 
+Next:
+1. Review the complete Git diff and confirm the documentation
+   matches the current implementation and tests.
+2. Verify the app on an Android device or emulator under network
+   loss and process termination/restart scenarios.
+3. Run the relevant validation commands again if code changes.
+4. Update this document with the actual device-test results.
+5. Create a Git checkpoint after reviewing the final diff.
 ### Instructions for a new ChatGPT conversation
 
 Start by reading AI_CONTEXT.md and DEVELOPMENT_STATUS.md from the repository.

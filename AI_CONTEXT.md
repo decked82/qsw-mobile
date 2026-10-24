@@ -34,6 +34,26 @@
   limit of 50.
 - Failed synchronization operations retain error information and
   increment their retry count.
+- Startup synchronization starts asynchronously after `runApp()`.
+- A sync attempt is also triggered after a successful inbound save.
+- Before reading the pending queue, SyncEngine recovers stale operations
+  left in PROCESSING by resetting them to PENDING.
+- Successful recovery is cached per SyncEngine instance. If recovery itself
+  fails, a later sync call retries it. If a status write fails and may leave
+  an operation PROCESSING, the cache is invalidated so the next sync cycle
+  can recover that operation without requiring an app restart.
+- SyncEngine prevents concurrent calls from processing the queue
+  simultaneously within the same instance.
+- Synchronization is also triggered when the app returns to the resumed
+  lifecycle state.
+- The app's SyncEngine retries failed or locally retryable operations
+  automatically with exponential delay, starting at 30 seconds and capped
+  at 15 minutes. Retries are also scheduled when reading the pending queue
+  fails; the current sync call still propagates the original error.
+- When a local status write fails in a way that can leave an operation
+  PROCESSING, the next sync cycle retries stale-operation recovery.
+- Retries run in-process; they do not guarantee execution after the OS
+  terminates the app or while its process is not running.
 
 ## Development environment
 - Ubuntu Linux.

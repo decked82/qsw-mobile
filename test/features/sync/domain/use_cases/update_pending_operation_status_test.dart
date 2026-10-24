@@ -40,6 +40,9 @@ class _FakePendingOperationRepository implements PendingOperationRepository {
     updatedLastAttemptAt = lastAttemptAt;
     updatedLastError = lastError;
   }
+
+  @override
+  Future<void> recoverProcessingOperations() async {}
 }
 
 void main() {

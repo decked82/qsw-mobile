@@ -319,6 +319,49 @@ void main() {
       },
     );
 
+    test(
+      'automatically retries when reading the pending queue fails',
+      () async {
+        final operation = _createOperation(
+          id: 1,
+          operationId: 'operation-queue-read-retry',
+          status: PendingOperationStatus.pending,
+          retryCount: 0,
+        );
+
+        final repository = FakePendingOperationRepository(
+          operations: [operation],
+        )..getPendingFailuresRemaining = 1;
+
+        final remote = FakeRemoteSyncDataSource();
+        final engine = SyncEngine(
+          pendingOperationRepository: repository,
+          remoteSyncDataSource: remote,
+          automaticRetry: true,
+          initialRetryDelay: const Duration(milliseconds: 5),
+          maxRetryDelay: const Duration(milliseconds: 10),
+        );
+
+        try {
+          await expectLater(
+            engine.syncPendingOperations(),
+            throwsA(isA<StateError>()),
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          expect(repository.getPendingCallCount, greaterThanOrEqualTo(2));
+          expect(remote.syncedOperations, hasLength(1));
+          expect(
+            repository.operations.single.status,
+            PendingOperationStatus.synced,
+          );
+        } finally {
+          engine.dispose();
+        }
+      },
+    );
+
     test('automatically retries failed operations with a delay', () async {
       final operation = _createOperation(
         id: 1,
@@ -550,6 +593,50 @@ void main() {
       expect(repository.getPendingCallCount, 2);
     });
 
+    test(
+      'automatically retries when initial PROCESSING recovery fails',
+      () async {
+        final operation = _createOperation(
+          id: 1,
+          operationId: 'operation-auto-recovery-retry',
+          status: PendingOperationStatus.processing,
+          retryCount: 0,
+        );
+
+        final repository = FakePendingOperationRepository(
+          operations: [operation],
+        )..recoveryFailuresRemaining = 1;
+
+        final remote = FakeRemoteSyncDataSource();
+
+        final engine = SyncEngine(
+          pendingOperationRepository: repository,
+          remoteSyncDataSource: remote,
+          automaticRetry: true,
+          initialRetryDelay: const Duration(milliseconds: 5),
+          maxRetryDelay: const Duration(milliseconds: 10),
+        );
+
+        try {
+          await expectLater(
+            engine.syncPendingOperations(),
+            throwsA(isA<StateError>()),
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          expect(repository.recoveryCallCount, greaterThanOrEqualTo(2));
+          expect(remote.syncedOperations, hasLength(1));
+          expect(
+            repository.operations.single.status,
+            PendingOperationStatus.synced,
+          );
+        } finally {
+          engine.dispose();
+        }
+      },
+    );
+
     test('retries recovery after recovery fails', () async {
       final repository = FakePendingOperationRepository()
         ..recoveryFailuresRemaining = 1;
@@ -740,6 +827,7 @@ class FakePendingOperationRepository implements PendingOperationRepository {
   int statusUpdateCount = 0;
   int recoveryCallCount = 0;
   int getPendingCallCount = 0;
+  int getPendingFailuresRemaining = 0;
   int recoveryFailuresRemaining = 0;
   Map<PendingOperationStatus, int> statusUpdateFailuresRemaining = {};
 
@@ -768,6 +856,11 @@ class FakePendingOperationRepository implements PendingOperationRepository {
   @override
   Future<List<PendingOperation>> getPending({int limit = 50}) async {
     getPendingCallCount++;
+
+    if (getPendingFailuresRemaining > 0) {
+      getPendingFailuresRemaining--;
+      throw StateError('Simulated pending queue read failure');
+    }
 
     return operations
         .where(

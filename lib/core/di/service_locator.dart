@@ -165,6 +165,7 @@ class ServiceLocator {
           );
 
     syncEngine = SyncEngine(
+      automaticRetry: true,
       pendingOperationRepository: pendingOperationRepository,
       remoteSyncDataSource: remoteSyncDataSource,
     );

@@ -7,6 +7,10 @@ abstract interface class PendingOperationRepository {
 
   Future<List<PendingOperation>> getPending({int limit = 50});
 
+  /// Возвращает операции, оставшиеся в PROCESSING, в очередь на повторную
+  /// синхронизацию после аварийного завершения приложения.
+  Future<void> recoverProcessingOperations();
+
   Future<void> save(PendingOperation operation);
 
   Future<void> updateStatus({
