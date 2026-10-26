@@ -10,7 +10,7 @@
 - Local database: SQLite via sqflite.
 - Remote services: Firebase Firestore.
 - Dependency initialization: ServiceLocator.
-- Current database schema version: 6.
+- Current database schema version: 7.
 
 ## Features
 - parts: part catalogue, search and CRUD operations.
@@ -54,6 +54,18 @@
   PROCESSING, the next sync cycle retries stale-operation recovery.
 - Retries run in-process; they do not guarantee execution after the OS
   terminates the app or while its process is not running.
+
+## Parts catalog synchronization schema
+- SQLite schema version 7 adds `sync_id`, `is_deleted`, and `deleted_at`
+  to the local `parts` table.
+- A unique index named `idx_parts_sync_id` is created for `sync_id`.
+- Existing parts are preserved during migration from schema version 6
+  to version 7. Their local IDs remain unchanged.
+- Existing rows retain `NULL` for `sync_id` and `deleted_at`, and `0`
+  for `is_deleted`. Migration does not assign cross-device identities.
+- This change prepares the local schema only. Bidirectional parts
+  synchronization and propagation of part deletions are not implemented
+  by this migration.
 
 ## Development environment
 - Ubuntu Linux.

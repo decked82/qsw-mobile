@@ -398,4 +398,75 @@ void main() {
 
     await database.close();
   });
+
+  test('version 7 preserves existing V6 part data', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'qsw_migration_v6_v7_',
+    );
+    final databasePath = '${directory.path}/qsw_test.db';
+
+    try {
+      final database = await databaseFactory.openDatabase(
+        databasePath,
+        options: OpenDatabaseOptions(
+          version: 6,
+          onCreate: SqliteMigrations.onCreate,
+          onUpgrade: SqliteMigrations.onUpgrade,
+        ),
+      );
+
+      final originalId = await database.insert('parts', {
+        'part_code': 'V6-PART-001',
+        'name': 'Legacy Part',
+        'specification': 'V6 migration test',
+        'barcode': '1234567890123',
+        'unit': 'EA',
+        'created_at': '2026-10-01T10:00:00.000Z',
+        'updated_at': '2026-10-01T10:00:00.000Z',
+      });
+
+      await database.close();
+
+      final upgradedDatabase = await databaseFactory.openDatabase(
+        databasePath,
+        options: OpenDatabaseOptions(
+          version: 7,
+          onCreate: SqliteMigrations.onCreate,
+          onUpgrade: SqliteMigrations.onUpgrade,
+        ),
+      );
+
+      final rows = await upgradedDatabase.query(
+        'parts',
+        where: 'id = ?',
+        whereArgs: [originalId],
+      );
+
+      expect(rows, hasLength(1));
+
+      final part = rows.single;
+
+      expect(part['id'], equals(originalId));
+      expect(part['part_code'], equals('V6-PART-001'));
+      expect(part['name'], equals('Legacy Part'));
+      expect(part['sync_id'], isNull);
+      expect(part['is_deleted'], equals(0));
+      expect(part['deleted_at'], isNull);
+
+      final indexes = await upgradedDatabase.rawQuery(
+        'PRAGMA index_list(parts)',
+      );
+
+      final syncIdIndex = indexes.where(
+        (index) => index['name'] == 'idx_parts_sync_id',
+      );
+
+      expect(syncIdIndex, hasLength(1));
+      expect(syncIdIndex.single['unique'], equals(1));
+
+      await upgradedDatabase.close();
+    } finally {
+      await Directory(directory.path).delete(recursive: true);
+    }
+  });
 }

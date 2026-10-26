@@ -20,6 +20,9 @@ class SqlitePartDataSource {
       unit: part.unit,
       createdAt: part.createdAt,
       updatedAt: part.updatedAt,
+      syncId: part.syncId,
+      isDeleted: part.isDeleted,
+      deletedAt: part.deletedAt,
     );
   }
 

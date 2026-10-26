@@ -10,6 +10,9 @@ class PartModel extends Part {
     super.unit,
     super.createdAt,
     super.updatedAt,
+    super.syncId,
+    super.isDeleted = false,
+    super.deletedAt,
   });
 
   factory PartModel.fromMap(Map<String, dynamic> map) {
@@ -26,6 +29,11 @@ class PartModel extends Part {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
+      syncId: map['sync_id'] as String?,
+      isDeleted: (map['is_deleted'] as int? ?? 0) == 1,
+      deletedAt: map['deleted_at'] != null
+          ? DateTime.parse(map['deleted_at'] as String)
+          : null,
     );
   }
 
@@ -39,6 +47,9 @@ class PartModel extends Part {
       'unit': unit,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'sync_id': syncId,
+      'is_deleted': isDeleted ? 1 : 0,
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
 
@@ -52,6 +63,9 @@ class PartModel extends Part {
       unit: part.unit,
       createdAt: part.createdAt,
       updatedAt: part.updatedAt,
+      syncId: part.syncId,
+      isDeleted: part.isDeleted,
+      deletedAt: part.deletedAt,
     );
   }
 }

@@ -23,6 +23,10 @@ class SqliteMigrations {
     if (version >= 6) {
       await _migrateToV6(db);
     }
+
+    if (version >= 7) {
+      await _migrateToV7(db);
+    }
   }
 
   static Future<void> onUpgrade(
@@ -54,6 +58,9 @@ class SqliteMigrations {
         break;
       case 6:
         await _migrateToV6(db);
+        break;
+      case 7:
+        await _migrateToV7(db);
         break;
     }
   }
@@ -205,5 +212,18 @@ class SqliteMigrations {
       CREATE INDEX idx_inbound_transactions_created_at
       ON inbound_transactions(created_at)
     ''');
+  }
+
+  static Future<void> _migrateToV7(Database db) async {
+    await db.execute('ALTER TABLE parts ADD COLUMN sync_id TEXT');
+
+    await db.execute(
+      'ALTER TABLE parts ADD COLUMN is_deleted '
+      'INTEGER NOT NULL DEFAULT 0',
+    );
+
+    await db.execute('ALTER TABLE parts ADD COLUMN deleted_at TEXT');
+
+    await db.execute('CREATE UNIQUE INDEX idx_parts_sync_id ON parts(sync_id)');
   }
 }

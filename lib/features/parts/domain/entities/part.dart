@@ -8,6 +8,9 @@ class Part {
     this.unit = 'EA',
     this.createdAt,
     this.updatedAt,
+    this.syncId,
+    this.isDeleted = false,
+    this.deletedAt,
   });
 
   final int? id;
@@ -18,4 +21,17 @@ class Part {
   final String unit;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// Стабильный идентификатор детали для синхронизации устройств.
+  ///
+  /// У существующих записей может быть null до этапа миграции
+  /// и согласования каталога.
+  final String? syncId;
+
+  /// Логическое удаление. Удалённые записи нужны для передачи
+  /// удаления на другие устройства.
+  final bool isDeleted;
+
+  /// Время логического удаления.
+  final DateTime? deletedAt;
 }

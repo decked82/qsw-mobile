@@ -24,12 +24,30 @@ void main() {
     await deleteDatabase(path);
   });
 
-  test('opens database with version 6 and creates required tables', () async {
+  test('opens database with version 7 and creates required tables', () async {
     final database = await databaseProvider.database;
 
     final version = await database.getVersion();
 
-    expect(version, equals(6));
+    expect(version, equals(7));
+
+    final partColumns = await database.rawQuery('PRAGMA table_info(parts)');
+    final partColumnNames = partColumns
+        .map((column) => column['name'] as String)
+        .toSet();
+
+    expect(partColumnNames, contains('sync_id'));
+    expect(partColumnNames, contains('is_deleted'));
+    expect(partColumnNames, contains('deleted_at'));
+
+    final syncIndexes = await database.query(
+      'sqlite_master',
+      columns: ['name'],
+      where: 'type = ? AND name = ?',
+      whereArgs: ['index', 'idx_parts_sync_id'],
+    );
+
+    expect(syncIndexes, hasLength(1));
 
     final partsTables = await database.query(
       'sqlite_master',

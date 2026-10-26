@@ -16,7 +16,7 @@ Verify the current Git state before continuing work.
 - a69cd77 — verify inbound transaction rollback.
 
 ## Confirmed implementation from inspected source
-- SQLite database migrations through version 6.
+- SQLite database migrations through version 7.
 - Parts, locations, boxes, movements and sync modules.
 - Inbound transaction use case validates part number, quantity and location.
 - Box number range reservation is handled before the local transaction.
@@ -27,6 +27,18 @@ Verify the current Git state before continuing work.
 - SyncEngine processes pending operations and records success or failure.
 - Automated tests exist for database migrations, repositories,
   inbound transactions, box numbering, sync logic and UI components.
+
+### Parts catalog synchronization schema
+- SQLite schema version 7 adds `sync_id`, `is_deleted`, and `deleted_at`
+  to the `parts` table and creates the unique index `idx_parts_sync_id`.
+- The targeted migration test for version 6 to version 7 passed:
+  existing part data and its local ID were preserved, the new columns
+  had the expected initial values, and the unique index was present.
+- The complete `sqlite_migrations_test.dart` suite passed with 10 tests.
+- Legacy parts are not assigned a `sync_id` during migration; their
+  `sync_id` remains `NULL` to avoid assuming cross-device identity.
+- Bidirectional synchronization of parts and propagation of deletions
+  remain future work. Schema preparation alone does not implement them.
 
 ## Verification
 - The latest commit concerns rollback testing.
