@@ -1,22 +1,15 @@
 import 'dart:convert';
 
 import '../entities/movement.dart';
-import '../repositories/movement_repository.dart';
+import '../repositories/movement_save_repository.dart';
 import '../../../sync/domain/entities/pending_operation.dart';
-import '../../../sync/domain/repositories/pending_operation_repository.dart';
 
 class SaveMovement {
-  const SaveMovement({
-    required this.movementRepository,
-    required this.pendingOperationRepository,
-  });
+  const SaveMovement({required this.movementSaveRepository});
 
-  final MovementRepository movementRepository;
-  final PendingOperationRepository pendingOperationRepository;
+  final MovementSaveRepository movementSaveRepository;
 
   Future<void> call(Movement movement) async {
-    await movementRepository.save(movement);
-
     final pendingOperation = PendingOperation(
       id: 0,
       operationId: movement.operationId,
@@ -29,7 +22,10 @@ class SaveMovement {
       createdAt: movement.createdAt,
     );
 
-    await pendingOperationRepository.save(pendingOperation);
+    await movementSaveRepository.saveAtomically(
+      movement: movement,
+      pendingOperation: pendingOperation,
+    );
   }
 
   String _movementTypeToOperationType(MovementType type) {

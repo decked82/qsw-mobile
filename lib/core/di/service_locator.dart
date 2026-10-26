@@ -47,6 +47,8 @@ import '../../features/sync/domain/use_cases/update_pending_operation_status.dar
 import '../../features/sync/domain/use_cases/update_sync_metadata_status.dart';
 import '../database/sqlite/sqlite_database_provider.dart';
 
+import '../../features/movements/data/repositories/sqlite_movement_save_repository.dart';
+
 class ServiceLocator {
   ServiceLocator._();
 
@@ -141,8 +143,7 @@ class ServiceLocator {
     );
 
     saveMovement = SaveMovement(
-      movementRepository: movementRepository,
-      pendingOperationRepository: pendingOperationRepository,
+      movementSaveRepository: SqliteMovementSaveRepository(database),
     );
 
     saveInboundTransaction = SaveInboundTransaction(
