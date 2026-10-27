@@ -36,6 +36,9 @@
   increment their retry count.
 - Startup synchronization starts asynchronously after `runApp()`.
 - A sync attempt is also triggered after a successful inbound save.
+- An integration test verifies recovery of a PROCESSING inbound
+  operation from SQLite and its subsequent write through the Firestore
+  adapter using FakeFirebaseFirestore.
 - Before reading the pending queue, SyncEngine recovers stale operations
   left in PROCESSING by resetting them to PENDING.
 - Successful recovery is cached per SyncEngine instance. If recovery itself

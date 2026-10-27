@@ -114,7 +114,9 @@ Important limitations or unverified behavior:
   failures, and Firestore document idempotency when the remote write
   succeeds but the local SYNCED update fails.
 - The full test suite and static analyzer passed on 2026-10-24:
-  160 tests passed and flutter analyze reported no issues.
+  165 tests passed and flutter analyze reported no issues. The suite
+  includes SQLite PROCESSING recovery followed by a Firestore-adapter
+  write verified with FakeFirebaseFirestore.
 - Real-device behavior under network loss, forced process termination,
   and subsequent app restart has not been verified in this checkpoint.
 - Real-device barcode/QR scanning has not been implemented in the inspected UI.

@@ -47,7 +47,7 @@ void main() {
         id: 0,
         operationId: 'recovery-after-restart-001',
         type: 'INBOUND',
-        entityType: 'MOVEMENT',
+        entityType: 'INBOUND_TRANSACTION',
         entityId: '1',
         payload: '{"boxNo":"BOX-001","quantity":10}',
         status: PendingOperationStatus.processing,
