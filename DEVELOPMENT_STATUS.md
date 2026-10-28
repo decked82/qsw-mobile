@@ -269,3 +269,10 @@ Start by reading AI_CONTEXT.md and DEVELOPMENT_STATUS.md from the repository.
 Use the current Git state as the source of truth for implementation status.
 Continue from "Exact continuation point" above.
 Do not redesign or rewrite existing features without inspecting their current code and tests first.
+
+### Local parts synchronization preparation — validated
+- New parts receive a UUID `sync_id` and creation/update timestamps when these values are not supplied.
+- Part deletion is logical: rows are retained with `is_deleted = 1`, `deleted_at`, and `updated_at`; normal catalog queries exclude deleted rows.
+- Existing legacy rows with `sync_id = NULL` are preserved; reconciliation is required before syncing them.
+- Regression coverage includes supplied metadata, distinct IDs for new parts, search exclusion of deleted parts, and repeated soft deletion.
+- Validation passed: `dart format lib test`, `flutter analyze`, `flutter test` (169 tests), and `git diff --check`.

@@ -105,3 +105,7 @@
 
 If documentation conflicts with the code, investigate and update the
 documentation rather than blindly following it.
+
+- New local parts receive a UUID `sync_id` and creation/update timestamps when those values are not supplied.
+- Part deletion is logical: rows are retained with `is_deleted = 1`, `deleted_at`, and `updated_at`; normal catalog queries exclude deleted rows.
+- Existing legacy rows with `sync_id = NULL` are not automatically assigned IDs. Catalog reconciliation is required before syncing them.
