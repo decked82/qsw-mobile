@@ -108,4 +108,4 @@ documentation rather than blindly following it.
 
 - New local parts receive a UUID `sync_id` and creation/update timestamps when those values are not supplied.
 - Part deletion is logical: rows are retained with `is_deleted = 1`, `deleted_at`, and `updated_at`; normal catalog queries exclude deleted rows.
-- Existing legacy rows with `sync_id = NULL` are not automatically assigned IDs. Catalog reconciliation is required before syncing them.
+- Existing legacy rows with `sync_id = NULL` are not assigned IDs automatically. The explicit `SqlitePartDataSource.reconcileLegacySyncIds()` method assigns UUIDs transactionally to eligible legacy rows, including soft-deleted rows. It refuses all assignments if a legacy row has a blank `part_code` or its code is duplicated across rows. It is not called automatically at app startup.

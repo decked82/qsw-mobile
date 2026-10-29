@@ -273,6 +273,6 @@ Do not redesign or rewrite existing features without inspecting their current co
 ### Local parts synchronization preparation — validated
 - New parts receive a UUID `sync_id` and creation/update timestamps when these values are not supplied.
 - Part deletion is logical: rows are retained with `is_deleted = 1`, `deleted_at`, and `updated_at`; normal catalog queries exclude deleted rows.
-- Existing legacy rows with `sync_id = NULL` are preserved; reconciliation is required before syncing them.
+- Existing legacy rows with `sync_id = NULL` are preserved. Explicit transactional reconciliation assigns UUIDs to eligible rows, including soft-deleted rows, and refuses assignments when legacy rows have blank or conflicting `part_code` values. Reconciliation is not automatic at app startup.
 - Regression coverage includes supplied metadata, distinct IDs for new parts, search exclusion of deleted parts, and repeated soft deletion.
-- Validation passed: `dart format lib test`, `flutter analyze`, `flutter test` (169 tests), and `git diff --check`.
+- Latest validation passed: `dart format lib test`, `flutter analyze`, `flutter test` (173 tests), and `git diff --check`.

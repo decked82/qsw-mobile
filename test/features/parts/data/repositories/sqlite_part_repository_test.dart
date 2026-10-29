@@ -247,4 +247,150 @@ void main() {
       expect(secondRows.single['is_deleted'], 1);
     },
   );
+  test(
+    'reconciles legacy sync IDs for active and deleted parts without changing metadata',
+    () async {
+      final db = await databaseProvider.database;
+      const createdAt = '2025-01-02T03:04:05.000Z';
+      const updatedAt = '2025-02-03T04:05:06.000Z';
+      const deletedAt = '2025-03-04T05:06:07.000Z';
+
+      final activeId = await db.insert('parts', {
+        'part_code': 'LEGACY-ACTIVE-001',
+        'name': 'Legacy active part',
+        'unit': 'EA',
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'is_deleted': 0,
+      });
+      final deletedId = await db.insert('parts', {
+        'part_code': 'LEGACY-DELETED-001',
+        'name': 'Legacy deleted part',
+        'unit': 'EA',
+        'created_at': createdAt,
+        'updated_at': updatedAt,
+        'is_deleted': 1,
+        'deleted_at': deletedAt,
+      });
+
+      final dataSource = SqlitePartDataSource(databaseProvider);
+      final result = await dataSource.reconcileLegacySyncIds();
+
+      expect(result.succeeded, isTrue);
+      expect(result.assignedCount, 2);
+      expect(result.conflicts, isEmpty);
+
+      final rows = await db.query(
+        'parts',
+        where: 'id IN (?, ?)',
+        whereArgs: [activeId, deletedId],
+        orderBy: 'id ASC',
+      );
+      expect(rows, hasLength(2));
+      expect(rows.every((row) => row['sync_id'] is String), isTrue);
+      expect(rows[0]['sync_id'], isNot(rows[1]['sync_id']));
+
+      final active = rows.firstWhere((row) => row['id'] == activeId);
+      final deleted = rows.firstWhere((row) => row['id'] == deletedId);
+      expect(active['created_at'], createdAt);
+      expect(active['updated_at'], updatedAt);
+      expect(active['is_deleted'], 0);
+      expect(active['deleted_at'], isNull);
+      expect(deleted['created_at'], createdAt);
+      expect(deleted['updated_at'], updatedAt);
+      expect(deleted['is_deleted'], 1);
+      expect(deleted['deleted_at'], deletedAt);
+    },
+  );
+
+  test('legacy sync ID reconciliation is idempotent', () async {
+    final db = await databaseProvider.database;
+    final id = await db.insert('parts', {
+      'part_code': 'LEGACY-IDEMPOTENT-001',
+      'name': 'Legacy idempotent part',
+      'unit': 'EA',
+    });
+    final dataSource = SqlitePartDataSource(databaseProvider);
+
+    final firstResult = await dataSource.reconcileLegacySyncIds();
+    final firstRows = await db.query(
+      'parts',
+      columns: ['sync_id'],
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    final firstSyncId = firstRows.single['sync_id'];
+
+    final secondResult = await dataSource.reconcileLegacySyncIds();
+    final secondRows = await db.query(
+      'parts',
+      columns: ['sync_id'],
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    expect(firstResult.succeeded, isTrue);
+    expect(firstResult.assignedCount, 1);
+    expect(firstSyncId, isA<String>());
+    expect(secondResult.succeeded, isTrue);
+    expect(secondResult.assignedCount, 0);
+    expect(secondRows.single['sync_id'], firstSyncId);
+  });
+
+  test(
+    'legacy sync ID reconciliation refuses duplicate codes without partial updates',
+    () async {
+      final db = await databaseProvider.database;
+      final firstId = await db.insert('parts', {
+        'part_code': 'LEGACY-DUPLICATE-001',
+        'name': 'First duplicate',
+        'unit': 'EA',
+      });
+      final secondId = await db.insert('parts', {
+        'part_code': 'LEGACY-DUPLICATE-001',
+        'name': 'Second duplicate',
+        'unit': 'EA',
+      });
+
+      final dataSource = SqlitePartDataSource(databaseProvider);
+      final result = await dataSource.reconcileLegacySyncIds();
+
+      expect(result.succeeded, isFalse);
+      expect(result.assignedCount, 0);
+      expect(result.conflicts, isNotEmpty);
+      expect(result.conflicts.join('\n'), contains('LEGACY-DUPLICATE-001'));
+
+      final rows = await db.query(
+        'parts',
+        where: 'id IN (?, ?)',
+        whereArgs: [firstId, secondId],
+      );
+      expect(rows, hasLength(2));
+      expect(rows.every((row) => row['sync_id'] == null), isTrue);
+    },
+  );
+
+  test('legacy sync ID reconciliation refuses blank codes', () async {
+    final db = await databaseProvider.database;
+    final id = await db.insert('parts', {
+      'part_code': '   ',
+      'name': 'Invalid legacy part code',
+      'unit': 'EA',
+    });
+
+    final dataSource = SqlitePartDataSource(databaseProvider);
+    final result = await dataSource.reconcileLegacySyncIds();
+
+    expect(result.succeeded, isFalse);
+    expect(result.assignedCount, 0);
+    expect(result.conflicts.join('\n'), contains('id=$id'));
+
+    final rows = await db.query(
+      'parts',
+      columns: ['sync_id'],
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    expect(rows.single['sync_id'], isNull);
+  });
 }
