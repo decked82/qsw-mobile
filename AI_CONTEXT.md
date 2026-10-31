@@ -109,3 +109,32 @@ documentation rather than blindly following it.
 - New local parts receive a UUID `sync_id` and creation/update timestamps when those values are not supplied.
 - Part deletion is logical: rows are retained with `is_deleted = 1`, `deleted_at`, and `updated_at`; normal catalog queries exclude deleted rows.
 - Existing legacy rows with `sync_id = NULL` are not assigned IDs automatically. The explicit `SqlitePartDataSource.reconcileLegacySyncIds()` method assigns UUIDs transactionally to eligible legacy rows, including soft-deleted rows. It refuses all assignments if a legacy row has a blank `part_code` or its code is duplicated across rows. It is not called automatically at app startup.
+
+## Parts local synchronization outbox
+
+- `SqlitePartSaveRepository` persists local part changes and their
+  pending synchronization operations in the same SQLite transaction.
+- Creating a part stores a `CREATE` / `PART` pending operation.
+  The operation's `entityId` is the part's `sync_id`.
+- Soft-deleting a part stores a `DELETE` / `PART` pending operation
+  in the same transaction as the local deletion.
+- Outbox payloads use `PartModel.toSyncMap()`, a dedicated remote
+  representation that excludes the device-local SQLite `id` and
+  serializes `is_deleted` as a boolean. The SQLite `toMap()` format
+  remains separate and unchanged.
+- CREATE and DELETE payload tests verify `sync_id`, absence of the
+  local `id`, boolean `is_deleted`, and `deleted_at` for DELETE.
+- `SqlitePartDataSource.addPart()` and `deletePart()` accept an optional
+  `DatabaseExecutor`, allowing repository writes to participate in the
+  surrounding SQLite transaction.
+- `SqlitePartRepository` delegates add and delete operations to
+  `SqlitePartSaveRepository`; reads and searches remain in the data source.
+- If writing a pending operation fails, the SQLite transaction rolls
+  back the corresponding local part change.
+- Repeated deletion of an already deleted part does not enqueue another
+  `DELETE` operation.
+- Deleting a legacy part without a non-empty `sync_id` is rejected.
+  Run `reconcileLegacySyncIds()` explicitly before deleting such a part.
+- This implements local transactional outbox persistence only.
+  Firestore handling and remote synchronization of `PART` operations
+  are not implemented yet.

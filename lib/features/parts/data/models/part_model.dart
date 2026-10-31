@@ -53,6 +53,25 @@ class PartModel extends Part {
     };
   }
 
+  /// Serializes the part for remote synchronization.
+  ///
+  /// Excludes the device-local SQLite primary key and uses a boolean
+  /// for the deletion state.
+  Map<String, dynamic> toSyncMap() {
+    return {
+      'sync_id': syncId,
+      'part_code': partCode,
+      'name': name,
+      'specification': specification,
+      'barcode': barcode,
+      'unit': unit,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'is_deleted': isDeleted,
+      'deleted_at': deletedAt?.toIso8601String(),
+    };
+  }
+
   factory PartModel.fromEntity(Part part) {
     return PartModel(
       id: part.id,

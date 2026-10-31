@@ -23,6 +23,7 @@ import '../../features/movements/domain/use_cases/save_inbound_transaction.dart'
 import '../../features/movements/domain/use_cases/save_movement.dart';
 import '../../features/parts/data/data_sources/sqlite_part_data_source.dart';
 import '../../features/parts/data/repositories/sqlite_part_repository.dart';
+import '../../features/parts/data/repositories/sqlite_part_save_repository.dart';
 import '../../features/parts/domain/repositories/part_repository.dart';
 import '../../features/parts/domain/use_cases/add_part.dart';
 import '../../features/parts/domain/use_cases/delete_part.dart';
@@ -105,7 +106,10 @@ class ServiceLocator {
     final database = await databaseProvider.database;
 
     partDataSource = SqlitePartDataSource(databaseProvider);
-    partRepository = SqlitePartRepository(partDataSource);
+    partRepository = SqlitePartRepository(
+      partDataSource,
+      saveRepository: SqlitePartSaveRepository(database, partDataSource),
+    );
 
     locationDataSource = SqliteLocationDataSource(database);
     locationRepository = SqliteLocationRepository(locationDataSource);

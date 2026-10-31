@@ -1,3 +1,4 @@
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/database/sqlite/sqlite_database_provider.dart';
@@ -27,8 +28,11 @@ class SqlitePartDataSource {
   final Uuid _uuid;
   final DateTime Function() _clock;
 
-  Future<PartModel> addPart(PartModel part) async {
-    final db = await _databaseProvider.database;
+  Future<PartModel> addPart(
+    PartModel part, {
+    DatabaseExecutor? executor,
+  }) async {
+    final db = executor ?? await _databaseProvider.database;
     final now = _clock();
     final preparedPart = PartModel(
       partCode: part.partCode,
@@ -173,15 +177,60 @@ class SqlitePartDataSource {
     });
   }
 
-  Future<void> deletePart(int id) async {
-    final db = await _databaseProvider.database;
-    final now = _clock().toIso8601String();
+  Future<PartModel?> deletePart(int id, {DatabaseExecutor? executor}) async {
+    final db = executor ?? await _databaseProvider.database;
 
-    await db.update(
+    final rows = await db.query(
       'parts',
-      {'is_deleted': 1, 'deleted_at': now, 'updated_at': now},
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (rows.isEmpty) {
+      return null;
+    }
+
+    final current = PartModel.fromMap(rows.single);
+
+    if (current.isDeleted) {
+      return null;
+    }
+
+    final syncId = current.syncId;
+    if (syncId == null || syncId.trim().isEmpty) {
+      throw StateError(
+        'Cannot delete legacy part id=$id without sync_id. '
+        'Run reconcileLegacySyncIds() first.',
+      );
+    }
+
+    final now = _clock();
+    final timestamp = now.toIso8601String();
+
+    final changed = await db.update(
+      'parts',
+      {'is_deleted': 1, 'deleted_at': timestamp, 'updated_at': timestamp},
       where: 'id = ? AND is_deleted = 0',
       whereArgs: [id],
+    );
+
+    if (changed != 1) {
+      throw StateError('Could not soft-delete part id=$id.');
+    }
+
+    return PartModel(
+      id: current.id,
+      partCode: current.partCode,
+      name: current.name,
+      specification: current.specification,
+      barcode: current.barcode,
+      unit: current.unit,
+      createdAt: current.createdAt,
+      updatedAt: now,
+      syncId: syncId,
+      isDeleted: true,
+      deletedAt: now,
     );
   }
 }

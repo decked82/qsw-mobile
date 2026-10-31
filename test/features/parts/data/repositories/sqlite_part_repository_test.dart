@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:qsw_mobile/core/database/sqlite/sqlite_database_provider.dart';
 import 'package:qsw_mobile/features/parts/data/data_sources/sqlite_part_data_source.dart';
 import 'package:qsw_mobile/features/parts/data/repositories/sqlite_part_repository.dart';
+import 'package:qsw_mobile/features/parts/data/repositories/sqlite_part_save_repository.dart';
 import 'package:qsw_mobile/features/parts/domain/entities/part.dart';
 import 'package:qsw_mobile/features/parts/domain/use_cases/add_part.dart';
 import 'package:qsw_mobile/features/parts/domain/use_cases/delete_part.dart';
@@ -25,10 +28,14 @@ void main() {
     databaseProvider = SqliteDatabaseProvider();
 
     final db = await databaseProvider.database;
+    await db.delete('pending_operations');
     await db.delete('parts');
 
     final dataSource = SqlitePartDataSource(databaseProvider);
-    final repository = SqlitePartRepository(dataSource);
+    final repository = SqlitePartRepository(
+      dataSource,
+      saveRepository: SqlitePartSaveRepository(db, dataSource),
+    );
 
     addPart = AddPart(repository);
     getParts = GetParts(repository);
@@ -71,6 +78,28 @@ void main() {
     expect(parts.first.specification, 'Test specification');
     expect(parts.first.barcode, '123456789');
     expect(parts.first.unit, 'EA');
+
+    final db = await databaseProvider.database;
+    final operations = await db.query(
+      'pending_operations',
+      where: 'entity_type = ? AND entity_id = ?',
+      whereArgs: ['PART', addedPart.syncId],
+    );
+
+    expect(operations, hasLength(1));
+    expect(operations.single['type'], 'CREATE');
+    expect(operations.single['status'], 'PENDING');
+    expect(operations.single['retry_count'], 0);
+    expect(operations.single['operation_id'], isNot(addedPart.syncId));
+
+    final createPayload =
+        jsonDecode(operations.single['payload']! as String)
+            as Map<String, dynamic>;
+
+    expect(createPayload['sync_id'], addedPart.syncId);
+    expect(createPayload.containsKey('id'), isFalse);
+    expect(createPayload['is_deleted'], isFalse);
+    expect(createPayload['is_deleted'], isA<bool>());
   });
 
   test('soft deletes part and preserves its sync metadata', () async {
@@ -107,11 +136,42 @@ void main() {
     expect(rows.single['sync_id'], addedPart.syncId);
     expect(rows.single['deleted_at'], isNotNull);
     expect(rows.single['updated_at'], isNotNull);
+
+    final operations = await db.query(
+      'pending_operations',
+      where: 'entity_type = ? AND entity_id = ?',
+      whereArgs: ['PART', addedPart.syncId],
+    );
+
+    expect(operations, hasLength(2));
+    expect(
+      operations.map((row) => row['type']).toSet(),
+      containsAll(['CREATE', 'DELETE']),
+    );
+    expect(operations.every((row) => row['status'] == 'PENDING'), isTrue);
+
+    final deleteOperation = operations.singleWhere(
+      (row) => row['type'] == 'DELETE',
+    );
+    final deletePayload =
+        jsonDecode(deleteOperation['payload']! as String)
+            as Map<String, dynamic>;
+
+    expect(deletePayload['sync_id'], addedPart.syncId);
+    expect(deletePayload.containsKey('id'), isFalse);
+    expect(deletePayload['is_deleted'], isTrue);
+    expect(deletePayload['is_deleted'], isA<bool>());
+    expect(deletePayload['deleted_at'], isNotNull);
   });
 
   test('does not show soft-deleted parts in search', () async {
+    final db = await databaseProvider.database;
+    final searchDataSource = SqlitePartDataSource(databaseProvider);
     final searchParts = SearchParts(
-      SqlitePartRepository(SqlitePartDataSource(databaseProvider)),
+      SqlitePartRepository(
+        searchDataSource,
+        saveRepository: SqlitePartSaveRepository(db, searchDataSource),
+      ),
     );
 
     const hiddenPart = Part(
@@ -143,7 +203,6 @@ void main() {
     expect(emptyQueryResults, hasLength(1));
     expect(emptyQueryResults.single.partCode, 'TEST-ACTIVE-001');
 
-    final db = await databaseProvider.database;
     final deletedRows = await db.query(
       'parts',
       where: 'id = ?',
@@ -202,7 +261,11 @@ void main() {
         databaseProvider,
         clock: () => clockValue,
       );
-      final repository = SqlitePartRepository(dataSource);
+      final db = await databaseProvider.database;
+      final repository = SqlitePartRepository(
+        dataSource,
+        saveRepository: SqlitePartSaveRepository(db, dataSource),
+      );
       final controlledAddPart = AddPart(repository);
       final controlledDeletePart = DeletePart(repository);
 
@@ -216,7 +279,6 @@ void main() {
       clockValue = DateTime.utc(2025, 3, 2, 11);
       await controlledDeletePart(addedPart.id!);
 
-      final db = await databaseProvider.database;
       final firstRows = await db.query(
         'parts',
         where: 'id = ?',
@@ -245,8 +307,117 @@ void main() {
       expect(secondRows.single['created_at'], createdAt?.toIso8601String());
       expect(secondRows.single['sync_id'], syncId);
       expect(secondRows.single['is_deleted'], 1);
+
+      final operations = await db.query(
+        'pending_operations',
+        where: 'entity_type = ? AND entity_id = ? AND type = ?',
+        whereArgs: ['PART', syncId, 'DELETE'],
+      );
+      expect(operations, hasLength(1));
     },
   );
+  test(
+    'rolls back soft deletion when DELETE operation cannot be queued',
+    () async {
+      final addedPart = await addPart(
+        const Part(
+          partCode: 'TEST-DELETE-ROLLBACK-001',
+          name: 'Delete Rollback Part',
+        ),
+      );
+
+      final db = await databaseProvider.database;
+      final createOperations = await db.query(
+        'pending_operations',
+        where: 'entity_type = ? AND entity_id = ? AND type = ?',
+        whereArgs: ['PART', addedPart.syncId, 'CREATE'],
+      );
+
+      expect(createOperations, hasLength(1));
+
+      final existingOperationId =
+          createOperations.single['operation_id'] as String;
+
+      final dataSource = SqlitePartDataSource(databaseProvider);
+      final repository = SqlitePartRepository(
+        dataSource,
+        saveRepository: SqlitePartSaveRepository(
+          db,
+          dataSource,
+          operationIdGenerator: () => existingOperationId,
+        ),
+      );
+
+      await expectLater(
+        DeletePart(repository)(addedPart.id!),
+        throwsA(isA<Exception>()),
+      );
+
+      final partRows = await db.query(
+        'parts',
+        where: 'id = ?',
+        whereArgs: [addedPart.id],
+      );
+
+      expect(partRows, hasLength(1));
+      expect(partRows.single['is_deleted'], 0);
+      expect(partRows.single['deleted_at'], isNull);
+      expect(partRows.single['sync_id'], addedPart.syncId);
+
+      final operations = await db.query(
+        'pending_operations',
+        where: 'entity_type = ? AND entity_id = ?',
+        whereArgs: ['PART', addedPart.syncId],
+      );
+
+      expect(operations, hasLength(1));
+      expect(operations.single['type'], 'CREATE');
+    },
+  );
+
+  test('does not delete a legacy part without sync ID', () async {
+    final db = await databaseProvider.database;
+
+    final legacyPartId = await db.insert('parts', {
+      'part_code': 'TEST-LEGACY-DELETE-001',
+      'name': 'Legacy Part Without Sync ID',
+      'unit': 'EA',
+      'created_at': '2025-01-02T03:04:05.000Z',
+      'updated_at': '2025-01-02T03:04:05.000Z',
+      'is_deleted': 0,
+    });
+
+    final dataSource = SqlitePartDataSource(databaseProvider);
+    final repository = SqlitePartRepository(
+      dataSource,
+      saveRepository: SqlitePartSaveRepository(db, dataSource),
+    );
+
+    await expectLater(
+      DeletePart(repository)(legacyPartId),
+      throwsA(isA<StateError>()),
+    );
+
+    final rows = await db.query(
+      'parts',
+      where: 'id = ?',
+      whereArgs: [legacyPartId],
+    );
+
+    expect(rows, hasLength(1));
+    expect(rows.single['sync_id'], isNull);
+    expect(rows.single['is_deleted'], 0);
+    expect(rows.single['deleted_at'], isNull);
+
+    final operations = await db.query(
+      'pending_operations',
+      where: 'entity_type = ?',
+      whereArgs: ['PART'],
+    );
+
+    expect(operations, isEmpty);
+  });
+
   test(
     'reconciles legacy sync IDs for active and deleted parts without changing metadata',
     () async {
@@ -393,4 +564,49 @@ void main() {
     );
     expect(rows.single['sync_id'], isNull);
   });
+
+  test(
+    'rolls back part creation when pending operation insert fails',
+    () async {
+      final db = await databaseProvider.database;
+      final dataSource = SqlitePartDataSource(databaseProvider);
+
+      final saveRepository = SqlitePartSaveRepository(
+        db,
+        dataSource,
+        operationIdGenerator: () => 'duplicate-operation-id',
+      );
+      final repository = SqlitePartRepository(
+        dataSource,
+        saveRepository: saveRepository,
+      );
+
+      await repository.addPart(
+        const Part(partCode: 'ATOMIC-CREATE-001', name: 'First part'),
+      );
+
+      await expectLater(
+        repository.addPart(
+          const Part(partCode: 'ATOMIC-CREATE-002', name: 'Second part'),
+        ),
+        throwsA(anything),
+      );
+
+      final parts = await db.query(
+        'parts',
+        where: 'part_code IN (?, ?)',
+        whereArgs: ['ATOMIC-CREATE-001', 'ATOMIC-CREATE-002'],
+      );
+
+      final operations = await db.query(
+        'pending_operations',
+        where: 'operation_id = ?',
+        whereArgs: ['duplicate-operation-id'],
+      );
+
+      expect(parts, hasLength(1));
+      expect(parts.single['part_code'], 'ATOMIC-CREATE-001');
+      expect(operations, hasLength(1));
+    },
+  );
 }

@@ -276,3 +276,33 @@ Do not redesign or rewrite existing features without inspecting their current co
 - Existing legacy rows with `sync_id = NULL` are preserved. Explicit transactional reconciliation assigns UUIDs to eligible rows, including soft-deleted rows, and refuses assignments when legacy rows have blank or conflicting `part_code` values. Reconciliation is not automatic at app startup.
 - Regression coverage includes supplied metadata, distinct IDs for new parts, search exclusion of deleted parts, and repeated soft deletion.
 - Latest validation passed: `dart format lib test`, `flutter analyze`, `flutter test` (173 tests), and `git diff --check`.
+
+## Parts local CREATE/DELETE outbox — verified
+
+- Added `SqlitePartSaveRepository` to persist part changes and their
+  pending synchronization operations atomically.
+- Part creation enqueues `CREATE` / `PART`; soft deletion enqueues
+  `DELETE` / `PART`. Both operations use the part's `sync_id` as
+  `entityId`.
+- Both outbox payloads are serialized with `PartModel.toSyncMap()`.
+  This remote representation excludes the local SQLite `id` and
+  stores `is_deleted` as a boolean; the SQLite `toMap()` format
+  remains unchanged.
+- Tests verify the CREATE and DELETE payload contracts, including
+  `deleted_at` on DELETE.
+- The data source accepts a transaction executor so the part row
+  and pending operation are written through the same SQLite transaction.
+- A failed pending-operation insert rolls back the corresponding
+  part write or soft deletion.
+- Repeated deletion does not enqueue a duplicate `DELETE`.
+- Deletion of a legacy part without `sync_id` is rejected without
+  changing the row or adding a pending operation.
+- `SqlitePartRepository` delegates writes to `SqlitePartSaveRepository`;
+  dependency registration is updated in `ServiceLocator`.
+- Focused Parts repository tests passed: 13 tests.
+- Full test suite passed: 176 tests.
+- `flutter analyze` completed with no issues.
+- The touched Dart files were formatted. A full-project
+  `dart format lib test` run has not been confirmed for this checkpoint.
+- Firestore `PART` handling is still pending. This checkpoint verifies
+  only the local transactional outbox, not remote Parts synchronization.
