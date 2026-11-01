@@ -135,6 +135,23 @@ documentation rather than blindly following it.
   `DELETE` operation.
 - Deleting a legacy part without a non-empty `sync_id` is rejected.
   Run `reconcileLegacySyncIds()` explicitly before deleting such a part.
-- This implements local transactional outbox persistence only.
-  Firestore handling and remote synchronization of `PART` operations
-  are not implemented yet.
+- `FirestorePartSyncDataSource` handles `CREATE` and `DELETE`
+  operations from the PART outbox.
+- PART documents are written to the Firestore `parts` collection,
+  using `sync_id` as the document ID. The remote payload excludes
+  the device-local SQLite ID.
+- The data source validates the payload JSON, `sync_id`, `entityId`,
+  `is_deleted`, operation type and `updated_at`.
+- Writes use a Firestore transaction and compare timestamps to avoid
+  overwriting newer remote state. A remote tombstone wins over an
+  incoming CREATE when timestamps are equal. A tombstone without a
+  parseable remote timestamp conservatively blocks an incoming CREATE.
+- `FirestoreRemoteSyncDataSource` routes `PART` operations to
+  `FirestorePartSyncDataSource`; `ServiceLocator` registers the source.
+- Automated tests cover CREATE, DELETE tombstones, stable document IDs,
+  stale-operation protection, equal-timestamp deletion precedence,
+  payload validation and router dispatch (11 PART Firestore tests).
+- These tests use `FakeFirebaseFirestore`. The `parts` collection,
+  remote field schema, security rules and compatibility with the
+  production Firestore/ERP contract have not been verified against
+  a live environment.

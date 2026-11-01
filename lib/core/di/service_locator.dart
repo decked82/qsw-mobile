@@ -31,6 +31,7 @@ import '../../features/parts/domain/use_cases/get_parts.dart';
 import '../../features/parts/domain/use_cases/search_parts.dart';
 import '../../features/sync/data/data_sources/firestore_inbound_transaction_sync_data_source.dart';
 import '../../features/sync/data/data_sources/firestore_movement_sync_data_source.dart';
+import '../../features/sync/data/data_sources/firestore_part_sync_data_source.dart';
 import '../../features/sync/data/data_sources/firestore_remote_sync_data_source.dart';
 import '../../features/sync/data/data_sources/not_configured_remote_sync_data_source.dart';
 import '../../features/sync/data/data_sources/remote_sync_data_source.dart';
@@ -167,6 +168,9 @@ class ServiceLocator {
                   inboundTransactionRepository: inboundTransactionRepository,
                   firestore: firestore,
                 ),
+            partSyncDataSource: FirestorePartSyncDataSource(
+              firestore: firestore,
+            ),
           );
 
     syncEngine = SyncEngine(

@@ -37,8 +37,16 @@ Verify the current Git state before continuing work.
 - The complete `sqlite_migrations_test.dart` suite passed with 10 tests.
 - Legacy parts are not assigned a `sync_id` during migration; their
   `sync_id` remains `NULL` to avoid assuming cross-device identity.
-- Bidirectional synchronization of parts and propagation of deletions
-  remain future work. Schema preparation alone does not implement them.
+- PART local changes are persisted through a transactional SQLite outbox.
+- Firestore synchronization for PART `CREATE` and `DELETE` operations
+  is implemented through `FirestorePartSyncDataSource`.
+- `FirestoreRemoteSyncDataSource` routes `PART` operations to this source,
+  and `ServiceLocator` registers it.
+- The Firestore data source uses `sync_id` as the document ID in the
+  `parts` collection and applies timestamp/tombstone conflict protection.
+- Eleven automated tests cover the PART Firestore data source and router.
+- Tests use `FakeFirebaseFirestore`; the collection/schema assumptions,
+  production security rules and live Firestore behavior remain unverified.
 
 ## Verification
 - The latest commit concerns rollback testing.
