@@ -49,12 +49,27 @@ Verify the current Git state before continuing work.
 - The Firestore data source uses `sync_id` as the document ID in the
   `parts` collection and applies timestamp/tombstone conflict protection.
 - Eleven automated tests cover the PART Firestore data source and router.
+- `AddPartPage` triggers an asynchronous synchronization attempt after
+  a successful local part save. Local saving remains successful even if
+  the immediate synchronization attempt fails; the outbox retains the
+  pending operation for a later retry.
+- An integration test verifies the complete local PART CREATE path:
+  SQLite insert, transactional PENDING outbox operation, SyncEngine
+  processing, Firestore adapter write and transition to SYNCED.
+- The integration test also verifies that repeating synchronization
+  does not create a duplicate Firestore document.
+- The PART integration test uses FakeFirebaseFirestore, not a live
+  Firebase project or production security rules.
 - Tests use `FakeFirebaseFirestore`; the collection/schema assumptions,
   production security rules and live Firestore behavior remain unverified.
 
 ## Verification
-- Latest Git checkpoint inspected: `b4979da`.
-- `flutter test test/features/sync`: 76 tests passed.
+- Last documented Git checkpoint: `b4979da`.
+- `flutter test test/features/parts test/features/sync`: 103 tests passed.
+- `flutter analyze`: no issues found after the PART integration test import cleanup.
+- `dart format` was run on the PART integration test and reported no changes.
+- The full-project test suite and full-project formatting have not been
+  rerun after the latest PART changes.
 - Full-project `flutter test` was not confirmed in this audit.
 - Full-project `flutter analyze` and `dart format lib test` were not
   rerun as part of this audit.

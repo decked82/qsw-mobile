@@ -10,8 +10,19 @@ void main() {
   testWidgets('adds a part through the form', (tester) async {
     final repository = FakePartRepository();
     final addPart = AddPart(repository);
+    var syncCallCount = 0;
 
-    await tester.pumpWidget(MaterialApp(home: AddPartPage(addPart: addPart)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AddPartPage(
+          addPart: addPart,
+          syncPendingOperations: () {
+            syncCallCount++;
+            return Future<void>.value();
+          },
+        ),
+      ),
+    );
 
     expect(find.byKey(const Key('add_part_button')), findsOneWidget);
 
@@ -45,5 +56,6 @@ void main() {
     expect(parts.first.unit, 'EA');
 
     expect(find.text('Part added successfully'), findsOneWidget);
+    expect(syncCallCount, 1);
   });
 }

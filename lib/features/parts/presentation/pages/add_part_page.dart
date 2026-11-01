@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/di/service_locator.dart';
@@ -6,10 +8,16 @@ import '../../domain/entities/part.dart';
 import '../../domain/use_cases/add_part.dart';
 
 class AddPartPage extends StatefulWidget {
-  AddPartPage({super.key, AddPart? addPart})
-    : _addPart = addPart ?? ServiceLocator.instance.addPart;
+  AddPartPage({
+    super.key,
+    AddPart? addPart,
+    Future<void> Function()? syncPendingOperations,
+  }) : _addPart = addPart ?? ServiceLocator.instance.addPart,
+       _syncPendingOperations =
+           syncPendingOperations ?? _syncPendingOperationsFromServiceLocator;
 
   final AddPart _addPart;
+  final Future<void> Function() _syncPendingOperations;
 
   @override
   State<AddPartPage> createState() => _AddPartPageState();
@@ -36,6 +44,15 @@ class _AddPartPageState extends State<AddPartPage> {
     super.dispose();
   }
 
+  Future<void> _syncPendingOperations() async {
+    try {
+      await widget._syncPendingOperations();
+    } catch (_) {
+      // Local save has already succeeded.
+      // Pending operation will be retried later.
+    }
+  }
+
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -59,6 +76,8 @@ class _AddPartPageState extends State<AddPartPage> {
       );
 
       await widget._addPart(part);
+
+      unawaited(_syncPendingOperations());
 
       if (!mounted) {
         return;
@@ -197,4 +216,8 @@ class _AddPartPageState extends State<AddPartPage> {
       ),
     );
   }
+}
+
+Future<void> _syncPendingOperationsFromServiceLocator() async {
+  await ServiceLocator.instance.syncEngine.syncPendingOperations();
 }

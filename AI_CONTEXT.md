@@ -36,6 +36,9 @@
   increment their retry count.
 - Startup synchronization starts asynchronously after `runApp()`.
 - A sync attempt is also triggered after a successful inbound save.
+- A sync attempt is triggered asynchronously after a successful local
+  part creation in AddPartPage. A synchronization error does not undo
+  the local save; the pending operation remains in the SQLite outbox.
 - An integration test verifies recovery of a PROCESSING inbound
   operation from SQLite and its subsequent write through the Firestore
   adapter using FakeFirebaseFirestore.
