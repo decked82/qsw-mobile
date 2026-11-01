@@ -2,18 +2,22 @@
 
 ## Last recorded checkpoint
 - Branch: main
-- Commit: a69cd77
-- Commit message: test: verify inbound transaction rollback
-- Last recorded Git status: clean; main matched origin/main.
+- Commit: b4979da
+- Commit message: feat(sync): add Firestore PART synchronization
+- Git working tree is not clean.
+- Existing tracked modification: `lib/features/movements/presentation/pages/inbound_page.dart`.
+- Numerous untracked backups and helper scripts are present.
+- These pre-existing local files must be preserved.
 
+The Git state above was checked on 2026-11-01.
 Verify the current Git state before continuing work.
 
 ## Recent development
-- 400c1e7 — remove Firebase smoke test UI.
-- 66f5105 — add inbound transactions and box number allocation.
-- cae9af2 — remove legacy inbound movement flow.
-- 4db03e3 — save inbound boxes atomically.
-- a69cd77 — verify inbound transaction rollback.
+- b4979da — add Firestore PART synchronization.
+- a5e1678 — add atomic local PART synchronization outbox.
+- 0c3b61e — add legacy PART sync ID reconciliation.
+- 5624c97 — prepare local PART records for synchronization.
+- c7ebbf3 — test Firestore sync recovery after restart.
 
 ## Confirmed implementation from inspected source
 - SQLite database migrations through version 7.
@@ -49,10 +53,15 @@ Verify the current Git state before continuing work.
   production security rules and live Firestore behavior remain unverified.
 
 ## Verification
-- The latest commit concerns rollback testing.
-- The full current test/build status has not been independently verified
-  in this checkpoint.
-- Run the relevant tests before making further changes.
+- Latest Git checkpoint inspected: `b4979da`.
+- `flutter test test/features/sync`: 76 tests passed.
+- Full-project `flutter test` was not confirmed in this audit.
+- Full-project `flutter analyze` and `dart format lib test` were not
+  rerun as part of this audit.
+- Android APK build and real-device verification remain outstanding.
+- Package resolution reported 41 packages with newer versions
+  incompatible with the current dependency constraints. No dependency
+  upgrades were performed as part of this audit.
 
 ## Open work
 - The next functional development task has not yet been established.
@@ -249,28 +258,68 @@ Acceptance criteria:
 
 ### Exact continuation point
 
-Synchronization startup, app lifecycle triggers, retry behavior,
-Firestore idempotency, and PROCESSING recovery have been inspected
-and covered by automated tests.
+The SyncEngine startup, lifecycle triggers, retry behavior, Firestore
+idempotency and recovery of operations left in `PROCESSING` have been
+inspected.
 
-Last recorded validation on 2026-10-24:
-- `dart format lib test`: 114 files, no formatting changes.
-- `flutter analyze`: no issues found.
-- `flutter test`: 160 tests passed.
-- `git diff --check`: passed.
-- Android APK build: not confirmed in this checkpoint.
+#### Synchronization triggers and lifecycle
 
-Real-device verification remains outstanding for network loss,
-forced process termination, and recovery after app restart.
+- `main.dart` initializes Firebase and `ServiceLocator`, then calls
+  `runApp`. Initial synchronization is started asynchronously afterward
+  and does not block the initial UI.
+- `app.dart` observes application lifecycle changes and requests
+  synchronization when the app enters `AppLifecycleState.resumed`.
+- The inbound flow requests synchronization after a successful local
+  inbound transaction save.
+- `ServiceLocator` provides a singleton SyncEngine with automatic retry
+  enabled.
+- Concurrent synchronization requests share the same in-progress Future.
+
+#### PROCESSING recovery and retry behavior
+
+- Before reading the pending queue, SyncEngine recovers operations left
+  in `PROCESSING` by returning them to `PENDING`.
+- Successful recovery is cached for the lifetime of the SyncEngine
+  instance. Failed recovery is retried rather than permanently cached.
+- Status-write failures that may leave an operation in `PROCESSING`
+  invalidate the recovery cache.
+- Automatic retry uses exponential backoff from 30 seconds up to
+  15 minutes.
+- Timer-based retries work only while the application process is alive.
+  There is no OS-managed background scheduler guaranteeing execution
+  after Android terminates the process.
+- The pending queue processes `PENDING` and `FAILED` operations, with
+  `PENDING` taking priority. The default batch size is 50.
+- A failed operation does not prevent the rest of the current batch
+  from being processed; processing stops before the next batch and
+  a retry is scheduled.
+- Firestore idempotency is covered for the case where the remote write
+  succeeds but the local transition to `SYNCED` fails.
+
+#### Latest synchronization validation
+
+Validated on 2026-11-01:
+- `flutter test test/features/sync`: 76 tests passed.
+- These tests include SyncEngine, pending-operation recovery and
+  Firestore synchronization behavior.
+- Automated tests use local SQLite test databases and
+  `FakeFirebaseFirestore`; they do not replace live Firestore or
+  physical-device verification.
+
+Still outstanding:
+- Verify network loss and restoration on an Android device or emulator.
+- Force-stop or terminate the app while an operation is processing,
+  then relaunch and verify recovery and eventual synchronization.
+- Verify behavior with the actual Firebase project, Firestore schema
+  and production security rules.
+- Run full-project validation and an Android APK build when appropriate.
 
 Next:
-1. Review the complete Git diff and confirm the documentation
-   matches the current implementation and tests.
-2. Verify the app on an Android device or emulator under network
-   loss and process termination/restart scenarios.
-3. Run the relevant validation commands again if code changes.
-4. Update this document with the actual device-test results.
-5. Create a Git checkpoint after reviewing the final diff.
+1. Review the documentation diff.
+2. Verify the synchronization scenarios on an Android device or emulator.
+3. Record only the checks that were actually executed.
+4. Create a Git checkpoint after reviewing the final diff.
+
 ### Instructions for a new ChatGPT conversation
 
 Start by reading AI_CONTEXT.md and DEVELOPMENT_STATUS.md from the repository.
@@ -312,5 +361,9 @@ Do not redesign or rewrite existing features without inspecting their current co
 - `flutter analyze` completed with no issues.
 - The touched Dart files were formatted. A full-project
   `dart format lib test` run has not been confirmed for this checkpoint.
-- Firestore `PART` handling is still pending. This checkpoint verifies
-  only the local transactional outbox, not remote Parts synchronization.
+- Firestore `PART` CREATE and DELETE handling is implemented through
+  `FirestorePartSyncDataSource` and routed by
+  `FirestoreRemoteSyncDataSource`.
+- The remote data source and router have 11 automated tests using
+  `FakeFirebaseFirestore`. Live Firestore behavior and production
+  security rules remain unverified.
