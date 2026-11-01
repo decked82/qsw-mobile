@@ -299,23 +299,33 @@ inspected.
 #### Latest synchronization validation
 
 Validated on 2026-11-01:
-- `flutter test test/features/sync`: 76 tests passed.
-- These tests include SyncEngine, pending-operation recovery and
-  Firestore synchronization behavior.
-- Automated tests use local SQLite test databases and
+
+- `dart format lib test`: 123 files formatted, no changes required.
+- `flutter analyze`: no issues found.
+- `flutter test test/features/sync`: 78 tests passed.
+- `flutter test`: 189 tests passed.
+- A file-backed SQLite recovery test verifies that an operation left
+  in `PROCESSING` is recovered after closing and reopening the database,
+  then successfully synchronized.
+- A second file-backed SQLite test verifies that retrying a Firestore
+  write after restart uses the same document ID and does not create
+  a duplicate document.
+- Automated tests use local SQLite databases and
   `FakeFirebaseFirestore`; they do not replace live Firestore or
   physical-device verification.
 
 Still outstanding:
+
 - Verify network loss and restoration on an Android device or emulator.
 - Force-stop or terminate the app while an operation is processing,
   then relaunch and verify recovery and eventual synchronization.
 - Verify behavior with the actual Firebase project, Firestore schema
   and production security rules.
-- Run full-project validation and an Android APK build when appropriate.
+- Run an Android APK build when appropriate.
 
 Next:
-1. Review the documentation diff.
+
+1. Review the documentation and test diff.
 2. Verify the synchronization scenarios on an Android device or emulator.
 3. Record only the checks that were actually executed.
 4. Create a Git checkpoint after reviewing the final diff.
