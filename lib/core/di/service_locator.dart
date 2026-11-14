@@ -1,4 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../../features/auth/data/data_sources/auth_data_source.dart';
+import '../../features/auth/data/data_sources/firebase_auth_data_source.dart';
+import '../../features/auth/data/data_sources/not_configured_auth_data_source.dart';
+import '../../features/auth/data/repositories/firebase_auth_repository.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
 
 import '../../features/boxes/data/data_sources/box_number_data_source.dart';
 import '../../features/boxes/data/data_sources/firestore_box_number_data_source.dart';
@@ -58,6 +65,9 @@ class ServiceLocator {
 
   late final SqliteDatabaseProvider databaseProvider;
 
+  late final AuthDataSource authDataSource;
+  late final AuthRepository authRepository;
+
   late final SqlitePartDataSource partDataSource;
   late final PartRepository partRepository;
 
@@ -101,7 +111,16 @@ class ServiceLocator {
   late final DeletePart deletePart;
   late final SearchParts searchParts;
 
-  Future<void> initialize({FirebaseFirestore? firestore}) async {
+  Future<void> initialize({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? firebaseAuth,
+  }) async {
+    authDataSource = firebaseAuth == null
+        ? const NotConfiguredAuthDataSource()
+        : FirebaseAuthDataSource(firebaseAuth: firebaseAuth);
+
+    authRepository = FirebaseAuthRepository(dataSource: authDataSource);
+
     databaseProvider = SqliteDatabaseProvider();
 
     final database = await databaseProvider.database;

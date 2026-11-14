@@ -17,6 +17,14 @@ void main() {
 
       expect(serviceLocator.databaseProvider, isNotNull);
 
+      expect(serviceLocator.authDataSource, isNotNull);
+      expect(serviceLocator.authRepository, isNotNull);
+      expect(serviceLocator.authRepository.currentUser, isNull);
+      await expectLater(
+        serviceLocator.authRepository.authStateChanges,
+        emits(isNull),
+      );
+
       expect(serviceLocator.partDataSource, isNotNull);
       expect(serviceLocator.partRepository, isNotNull);
 

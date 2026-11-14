@@ -203,6 +203,84 @@ class AppLocalizations {
 
   String get retry => _translate(en: 'Retry', ko: '다시 시도', ru: 'Повторить');
 
+  String get loginTitle => _translate(en: 'Sign in', ko: '로그인', ru: 'Вход');
+
+  String get email =>
+      _translate(en: 'Email', ko: '이메일', ru: 'Электронная почта');
+
+  String get password => _translate(en: 'Password', ko: '비밀번호', ru: 'Пароль');
+
+  String get enterEmail => _translate(
+    en: 'Enter your email',
+    ko: '이메일을 입력하세요',
+    ru: 'Введите электронную почту',
+  );
+
+  String get enterPassword => _translate(
+    en: 'Enter your password',
+    ko: '비밀번호를 입력하세요',
+    ru: 'Введите пароль',
+  );
+
+  String get emailRequired => _translate(
+    en: 'Email is required',
+    ko: '이메일은 필수입니다',
+    ru: 'Введите электронную почту',
+  );
+
+  String get emailInvalid => _translate(
+    en: 'Enter a valid email address',
+    ko: '올바른 이메일 주소를 입력하세요',
+    ru: 'Введите корректный адрес электронной почты',
+  );
+
+  String get passwordRequired => _translate(
+    en: 'Password is required',
+    ko: '비밀번호는 필수입니다',
+    ru: 'Введите пароль',
+  );
+
+  String get signIn => _translate(en: 'Sign in', ko: '로그인', ru: 'Войти');
+
+  String get signingIn =>
+      _translate(en: 'Signing in...', ko: '로그인 중...', ru: 'Вход...');
+
+  String get authErrorGeneric => _translate(
+    en: 'Unable to sign in. Please try again.',
+    ko: '로그인할 수 없습니다. 다시 시도하세요.',
+    ru: 'Не удалось войти. Попробуйте ещё раз.',
+  );
+
+  String get authErrorInvalidCredentials => _translate(
+    en: 'Invalid email or password',
+    ko: '이메일 또는 비밀번호가 올바르지 않습니다',
+    ru: 'Неверная электронная почта или пароль',
+  );
+
+  String get authErrorTooManyRequests => _translate(
+    en: 'Too many attempts. Please try again later.',
+    ko: '시도가 너무 많습니다. 나중에 다시 시도하세요.',
+    ru: 'Слишком много попыток. Попробуйте позже.',
+  );
+
+  String get authErrorNetwork => _translate(
+    en: 'Network error. Check your connection.',
+    ko: '네트워크 오류입니다. 연결을 확인하세요.',
+    ru: 'Ошибка сети. Проверьте подключение.',
+  );
+
+  String get authNotConfigured => _translate(
+    en: 'Authentication is not configured.',
+    ko: '인증이 구성되지 않았습니다.',
+    ru: 'Аутентификация не настроена.',
+  );
+
+  String get authStateError => _translate(
+    en: 'Unable to check authentication state.',
+    ko: '인증 상태를 확인할 수 없습니다.',
+    ru: 'Не удалось проверить состояние авторизации.',
+  );
+
   String _translate({
     required String en,
     required String ko,

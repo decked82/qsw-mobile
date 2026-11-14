@@ -392,3 +392,96 @@ Do not redesign or rewrite existing features without inspecting their current co
 - The remote data source and router have 11 automated tests using
   `FakeFirebaseFirestore`. Live Firestore behavior and production
   security rules remain unverified.
+
+
+## Authentication UI — isolated implementation
+
+Date: 2026-11-15
+
+### Completed
+
+Implemented the first isolated presentation stage of authentication.
+
+New presentation files:
+
+- `lib/features/auth/presentation/pages/login_page.dart`
+- `lib/features/auth/presentation/widgets/auth_gate.dart`
+- `test/features/auth/presentation/pages/login_page_test.dart`
+- `test/features/auth/presentation/widgets/auth_gate_test.dart`
+
+Modified:
+
+- `lib/core/localization/app_localizations.dart`
+
+### LoginPage
+
+- Added email and password form fields.
+- Added email and password validation.
+- Added asynchronous sign-in through `AuthRepository`.
+- Added prevention of duplicate submissions.
+- Added localized authentication error messages.
+- Added loading state during sign-in.
+- Successful sign-in is reflected through the authentication state
+  stream rather than direct navigation from the page.
+
+### AuthGate
+
+- Added authentication state observation through `AuthRepository`.
+- Added loading state.
+- Added login presentation for signed-out users.
+- Added authenticated child presentation for signed-in users.
+- Added authentication stream error state and retry action.
+
+### Localization
+
+Added authentication-related translations to the existing
+`AppLocalizations` implementation:
+
+- English
+- Korean
+- Russian
+
+### Verification
+
+The following checks were executed after the implementation:
+
+- `dart format lib/features/auth/presentation` — completed,
+  2 files checked, no formatting changes required.
+- `flutter analyze` — passed, no issues found.
+- `flutter test test/features/auth/presentation/` — passed,
+  8 tests.
+- `git diff --check` — passed.
+
+These results apply to the isolated authentication presentation
+stage. They do not establish that the authentication flow has been
+integrated into the running application.
+
+### Not yet implemented
+
+- Connecting `AuthGate` to `QswApp`.
+- Preserving and verifying the existing `AppRouter` behavior
+  during authentication integration.
+- Adding a sign-out control to the authenticated application UI.
+- Testing the complete sign-in/sign-out flow in the running app.
+- Defining and enforcing organization membership and role-based access.
+- Protecting synchronization and Firestore operations against
+  unauthenticated or unauthorized access.
+- Verifying authentication behavior on a physical Android device.
+
+### Next development stage
+
+1. Inspect the current `QswApp`, `AppRouter` and dependency setup.
+2. Integrate `AuthGate` without replacing the existing navigation system.
+3. Add sign-out UI.
+4. Add integration tests for authentication transitions.
+5. Run formatting, analyzer and relevant tests.
+6. Update this document after the integration stage is verified.
+
+### Git checkpoint
+
+The isolated authentication UI implementation has passed its
+focused tests and static analysis.
+
+A Git commit for this stage has not yet been created.
+Review the staged files separately from pre-existing unrelated
+working-tree changes before committing.

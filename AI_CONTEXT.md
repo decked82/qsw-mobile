@@ -158,3 +158,73 @@ documentation rather than blindly following it.
   remote field schema, security rules and compatibility with the
   production Firestore/ERP contract have not been verified against
   a live environment.
+
+
+## Authentication UI
+
+### Existing authentication architecture
+
+- Authentication is organized as a feature module under
+  `lib/features/auth`.
+- `AuthRepository` defines the domain contract for authentication:
+  observing authentication state, accessing the current user,
+  signing in with email and password, and signing out.
+- `AuthUser` represents the authenticated user with a Firebase UID
+  and optional email address.
+- `AuthException` represents authentication errors using error codes.
+- `FirebaseAuthRepository` delegates authentication operations
+  to the configured authentication data source.
+- `FirebaseAuthDataSource` integrates with Firebase Authentication.
+- `NotConfiguredAuthDataSource` provides a fallback when Firebase
+  Authentication is not configured.
+
+### Authentication presentation
+
+- `LoginPage` is implemented at
+  `lib/features/auth/presentation/pages/login_page.dart`.
+- The page receives an `AuthRepository` dependency.
+- It provides email and password input, form validation,
+  asynchronous sign-in, duplicate-submission prevention,
+  and user-facing error messages.
+- Email input is trimmed before authentication.
+- Password input is preserved without trimming.
+- Authentication errors are translated into localized messages.
+- Successful sign-in does not perform navigation directly.
+  Authentication state changes are observed by `AuthGate`.
+
+- `AuthGate` is implemented at
+  `lib/features/auth/presentation/widgets/auth_gate.dart`.
+- It receives an `AuthRepository` and an authenticated child widget.
+- It observes `authStateChanges` and uses `currentUser` as initial data.
+- Signed-out users are presented with `LoginPage`.
+- Authenticated users are presented with the supplied child.
+- Loading and authentication stream error states are handled.
+- A retry action allows the authentication stream subscription
+  to be recreated after an error.
+
+### Localization
+
+- Authentication UI strings are added to
+  `lib/core/localization/app_localizations.dart`.
+- English, Korean and Russian translations are provided.
+- The existing localization mechanism is retained.
+
+### Current integration boundary
+
+- `LoginPage` and `AuthGate` are implemented and tested independently.
+- `AuthGate` is NOT yet connected to `QswApp`.
+- Existing application navigation through `AppRouter` remains unchanged
+  by this isolated presentation stage.
+- A sign-out control has not yet been added to the application UI.
+- Authentication UI gating alone does not protect Firestore data
+  or authorize synchronization operations.
+- Organization membership, roles, warehouse access and Firestore
+  security rules require separate implementation and verification.
+
+### Authentication presentation tests
+
+- `test/features/auth/presentation/pages/login_page_test.dart`
+  covers form validation, successful repository invocation,
+  and authentication error presentation.
+- `test/features/auth/presentation/widgets/auth_gate_test.dart`
+  covers loading, signed-out, signed-in and stream error states.
