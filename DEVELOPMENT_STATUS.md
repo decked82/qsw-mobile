@@ -2,7 +2,7 @@
 
 ## Last recorded checkpoint
 - Branch: main
-- Commit: b4979da
+- Commit: 16f6908
 - Commit message: feat(sync): add Firestore PART synchronization
 - Git working tree is not clean.
 - Existing tracked modification: `lib/features/movements/presentation/pages/inbound_page.dart`.
@@ -64,7 +64,7 @@ Verify the current Git state before continuing work.
   production security rules and live Firestore behavior remain unverified.
 
 ## Verification
-- Last documented Git checkpoint: `b4979da`.
+- Last documented Git checkpoint: `16f6908`.
 - `flutter test test/features/parts test/features/sync`: 103 tests passed.
 - `flutter analyze`: no issues found after the PART integration test import cleanup.
 - `dart format` was run on the PART integration test and reported no changes.
@@ -485,3 +485,165 @@ focused tests and static analysis.
 A Git commit for this stage has not yet been created.
 Review the staged files separately from pre-existing unrelated
 working-tree changes before committing.
+
+
+<!-- QSW_MULTI_TENANT_AUTHORIZATION_STATUS -->
+## Multi-tenant authorization model — agreed, not implemented
+
+Last reviewed: 2026-11-16
+
+### Verified current state
+
+The repository snapshot reviewed for this update reports:
+- HEAD: `16f6908 feat(auth): add authentication infrastructure and isolated UI`.
+- The working tree is not clean. Existing tracked modifications and numerous
+  untracked backups/scripts predate this documentation update and must be
+  preserved.
+- Firebase Authentication email/password infrastructure is implemented.
+- `AuthUser` currently contains Firebase UID and optional email only.
+- AuthRepository, FirebaseAuthRepository, FirebaseAuthDataSource and
+  NotConfiguredAuthDataSource provide the authentication abstraction.
+- LoginPage and AuthGate are implemented and have focused tests.
+- AuthGate is not connected to QswApp; sign-out UI and complete application
+  session integration are not complete.
+- Authentication establishes identity only. It does not establish
+  organization membership, role, warehouse access or operation permission.
+- Reviewed SQLite schema is version 7 and has no organization/warehouse
+  tenant scope in the inspected business/outbox tables.
+- Firestore synchronization and SyncEngine are not tenant-aware.
+- Organization, OrganizationMembership, role authorization, active
+  organization and warehouse assignment are not implemented.
+- Production-safe multi-tenant Firestore Security Rules are not implemented
+  or verified.
+
+### Approved business decisions
+
+1. A Firebase user may belong to multiple QSW organizations.
+2. Role and membership are organization-specific; warehouse access is
+   assigned separately.
+3. Roles: OWNER, ADMIN, WAREHOUSE_MANAGER, WORKER, GUEST.
+4. OWNER controls organization profile, ownership transfer, ADMIN appointment,
+   organization archival/restoration and organization-wide stock policy.
+5. ADMIN manages members except OWNER, warehouses and shared organizational
+   dictionaries. ADMIN cannot perform stock-moving operations by virtue of
+   the ADMIN role.
+6. WAREHOUSE_MANAGER manages assigned warehouse structure, warehouse-specific
+   part data and permitted warehouse operations.
+7. WORKER performs only the agreed warehouse operations and uses existing
+   dictionaries.
+8. GUEST is read-only within assigned warehouse scope.
+9. OWNER/ADMIN have organization-wide oversight; other roles are warehouse
+   scoped.
+10. Shared part catalogue belongs to the organization; the same part may be
+    held at several warehouses. Warehouse stock and cell allocation are
+    separate from common part attributes.
+11. OWNER/ADMIN create, edit and archive shared part records. WAREHOUSE_MANAGER
+    may request a missing part but cannot edit the shared master.
+12. OWNER/ADMIN manage external recipient organizations and general
+    organizational dictionaries. WAREHOUSE_MANAGER may request a missing
+    counterparty but cannot directly maintain the dictionary.
+13. ADMIN creates/edits/archives/restores warehouses. OWNER has visibility
+    but does not administer warehouse records.
+14. ADMIN and WAREHOUSE_MANAGER manage racks/cells; WAREHOUSE_MANAGER is
+    limited to assigned warehouses and may archive/restore only subject to
+    emptiness constraints.
+15. No role directly edits stock quantity.
+16. Inbound: create by WAREHOUSE_MANAGER/WORKER; reverse by
+    WAREHOUSE_MANAGER only.
+17. Internal transfer: create and cancel by WAREHOUSE_MANAGER/WORKER.
+    Cancellation is a reverse transfer preserving both warehouses.
+18. External issue: create by WAREHOUSE_MANAGER/WORKER; reverse by
+    WAREHOUSE_MANAGER only. Source warehouse, external recipient and
+    document number are required; recipient warehouse is not specified.
+19. Saved operations are immutable. Corrections are separate linked,
+    idempotent operations with mandatory reason. Duplicate reversal is
+    prohibited. Partial reversal is not agreed.
+20. `allow_negative_stock` is configurable by OWNER/ADMIN; negative stock
+    is allowed by default. When disabled, a new operation cannot create a
+    negative balance. Existing negative balances are not auto-corrected.
+21. OWNER/ADMIN view full audit; WAREHOUSE_MANAGER views audit for assigned
+    warehouses; WORKER/GUEST have no audit access. Audit is immutable through
+    ordinary application roles.
+22. Only OWNER archives/restores an organization. Archiving preserves data
+    and blocks new warehouse operations.
+23. Archival is blocked when pending/in-flight synchronization is detected.
+    A cross-device barrier is still required because a server cannot inspect
+    unsent outbox records on offline devices.
+24. Historical reference records are retained; used records are not physically
+    deleted and archived records cannot be selected for new operations.
+
+The complete role and action matrices are documented in AI_CONTEXT.md under
+"Multi-tenant architecture and authorization model".
+
+### Implementation gaps
+
+Not implemented or not verified:
+- Organization/OrganizationMembership models, repositories and lifecycle.
+- Invitations, acceptance, deactivation and restoration workflows.
+- Central role/permission policy and warehouse assignment enforcement.
+- Active organization selection, persistence and switching.
+- AuthGate integration into QswApp and sign-out UI.
+- Tenant-aware SQLite tables, indexes, queries and safe legacy migration.
+- Tenant-scoped Firestore paths, payload contracts and Security Rules.
+- Trusted backend enforcement for atomic stock mutation and negative-stock
+  checks under concurrent devices.
+- Tenant/session-aware outbox and SyncEngine behavior.
+- Safe handling of queued work after sign-out, switching organizations,
+  membership revocation or archival.
+- Rack/Cell and warehouse-part/multi-cell allocation schema.
+- Part/counterparty request workflows.
+- Audit schema, write path and scoped queries.
+- Cross-device organization archival barrier.
+
+### Architectural risks and constraints
+
+- UI-only permission checks are insufficient; repositories, Firestore rules
+  and trusted backend workflows must enforce access.
+- Existing root Firestore collections are not established as tenant-safe.
+- An outbox item must retain the tenant identity under which it was created;
+  retries must never use the currently selected organization as a substitute.
+- Local SQLite cannot prove that every device has synchronized.
+- Server checks cannot detect an operation that exists only on an offline
+  device. Organization archival needs a designed cross-device barrier.
+- Stock validation must be atomic with stock mutation to avoid races between
+  devices.
+- Existing locations/boxes semantics must be inspected before mapping them
+  to the target Rack/Cell model.
+- Migration must preserve stock and history; tenant ownership must not be
+  guessed during backfill.
+
+### Recommended implementation sequence (planning only)
+
+1. Inspect QswApp/AppRouter and complete AuthGate integration plus sign-out,
+   preserving existing navigation.
+2. Design Organization and OrganizationMembership contracts and lifecycle.
+3. Design active organization and warehouse assignment.
+4. Design tenant-aware part, warehouse-part, rack, cell and allocation model.
+5. Design SQLite migration/backfill preserving existing data and outbox.
+6. Design tenant-scoped Firestore schema, Security Rules and trusted stock
+   transaction responsibilities.
+7. Design tenant-aware outbox and SyncEngine session/organization behavior.
+8. Design cross-device archival barrier.
+9. Implement centralized authorization across UI, repositories, remote
+   sources and trusted backend.
+10. Implement audit, request workflows and archival lifecycle.
+11. Add cross-tenant, cross-warehouse, role, concurrency and multi-device
+    tests.
+
+This is a planning sequence, not authorization to start implementation.
+Inspect current source, tests, migrations and working-tree changes before
+each stage. Security and migration design must precede broad tenant changes.
+
+### Documentation-only scope
+
+This update changes only AI_CONTEXT.md and DEVELOPMENT_STATUS.md. It does not
+change Dart code, SQLite migrations, Firebase configuration, Firestore data,
+Security Rules or tests.
+
+The reviewed HEAD is `16f6908`. The previous current-checkpoint entry
+incorrectly named `b4979da`; that single checkpoint reference is corrected
+below. Older dated historical records are retained as historical records.
+
+After applying, review `git diff --check`, the complete documentation diff
+and `git status --short`. Do not stage or commit unrelated pre-existing
+working-tree files.

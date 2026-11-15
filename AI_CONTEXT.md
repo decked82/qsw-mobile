@@ -228,3 +228,319 @@ documentation rather than blindly following it.
   and authentication error presentation.
 - `test/features/auth/presentation/widgets/auth_gate_test.dart`
   covers loading, signed-out, signed-in and stream error states.
+
+
+<!-- QSW_MULTI_TENANT_AUTHORIZATION_MODEL -->
+## Multi-tenant architecture and authorization model
+
+**Status: business rules agreed; implementation not started.**
+This section describes the approved target model. It does not describe
+implemented Dart classes, SQLite tables, Firestore collections or deployed
+security rules.
+
+### Identity, organization and membership
+
+- Firebase Authentication identifies a person by Firebase UID. Authentication
+  alone does not grant organization, warehouse or operation permissions.
+- One Firebase Auth user may belong to multiple QSW organizations.
+- A user's role is assigned independently in each organization.
+- The target domain concepts are `Organization` and
+  `OrganizationMembership`. Membership conceptually links `userId`,
+  `organizationId`, role, membership status and accessible warehouse IDs.
+  Exact fields, persistence and invitation lifecycle remain technical design
+  work.
+- Membership can be deactivated and restored. Deactivation does not delete
+  the Firebase Auth account or historical operations.
+- A user may have different roles and warehouse assignments in different
+  organizations.
+- The application must maintain an explicit active-organization context.
+  Switching organizations must switch data and operation context without
+  mixing tenant data or queued writes.
+- An organization owns its shared part catalogue, organizational reference
+  data and warehouses.
+
+### Target data hierarchy
+
+`Organization -> Warehouses -> Racks -> Cells`
+
+Organization-level data:
+- organization profile and settings;
+- memberships and roles;
+- shared part catalogue;
+- external recipient organizations and other shared dictionaries;
+- warehouses.
+
+Warehouse-level data:
+- warehouse-specific stock for organization-owned parts;
+- rack/cell structure and stock placement;
+- warehouse operations and warehouse-scoped audit events.
+
+A part belongs to the organization, not to one warehouse. The same part may
+be stored in several warehouses. Common part attributes are separate from
+warehouse stock and cell allocation. A future multi-cell allocation model
+must allow stock to be distributed among cells without making one cell the
+sole location of an organization-wide part. The exact schema and migration
+from current `locations`/`boxes` require separate inspection and design.
+
+### Roles
+
+- `OWNER`: organization owner; controls organization profile, ownership,
+  high-level security, archival and organization-wide stock policy.
+- `ADMIN`: manages members (except OWNER), warehouses and shared
+  organizational reference data. ADMIN does not gain permission to conduct
+  stock-moving operations merely by being an administrator.
+- `WAREHOUSE_MANAGER`: manages assigned warehouse structure, warehouse-level
+  part data and the warehouse operations explicitly granted below.
+- `WORKER`: performs permitted warehouse operations and uses existing
+  reference data; does not administer the organization or shared catalog.
+- `GUEST`: read-only access within assigned warehouse scope.
+
+OWNER and ADMIN have organization-wide oversight. WAREHOUSE_MANAGER, WORKER
+and GUEST are restricted to explicitly assigned warehouses for warehouse
+data. Role and warehouse scope must both be checked.
+
+### Organization and membership permission matrix
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View organization | Yes | Yes | Yes | Yes | Yes |
+| Edit organization profile | Yes | No | No | No | No |
+| Transfer ownership | Yes | No | No | No | No |
+| Appoint/remove OWNER | Yes | No | No | No | No |
+| Appoint ADMIN | Yes | No | No | No | No |
+| Invite members | Yes | Yes | No | No | No |
+| Assign/change non-OWNER roles | Yes | Yes | No | No | No |
+| Assign warehouse access | Yes | Yes | No | No | No |
+| Deactivate/restore membership | Yes | Yes | No | No | No |
+| View member list | Yes | Yes | No | No | No |
+| Archive/restore organization | Yes | No | No | No | No |
+
+ADMIN cannot appoint, remove or replace OWNER. The organization must retain
+an owner. Membership deactivation does not erase the identity or history.
+
+### Warehouse permission matrix
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View all organization warehouses | Yes | Yes | No | No | No |
+| View assigned warehouses | Yes | Yes | Yes | Yes | Yes |
+| Create/edit warehouse | No | Yes | No | No | No |
+| Archive/restore warehouse | No | Yes | No | No | No |
+| Change `allow_negative_stock` | Yes | Yes | No | No | No |
+
+ADMIN creates, edits, archives and restores warehouses. OWNER has
+organization-wide visibility and can change the stock policy but does not
+administer warehouse records.
+
+### Racks, cells and storage zones
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View | Yes | Yes | Assigned warehouses | Assigned warehouses | Assigned warehouses |
+| Create/edit | No | Yes | Assigned warehouses | No | No |
+| Archive/restore | No | Yes | Assigned warehouses | No | No |
+| Use permitted locations in operations | No | No | Assigned warehouses | Assigned warehouses | No |
+
+WAREHOUSE_MANAGER may create, edit, archive and restore racks/cells only in
+assigned warehouses. A cell cannot be archived while stock remains allocated
+to it. A rack cannot be archived while it contains non-empty cells. Stock
+must first be moved to valid locations. Historical placement must be retained.
+The exact emptiness check must account for active allocations and, if later
+introduced, reservations/in-flight operations.
+
+### Shared part catalogue
+
+The organization-wide part master contains common attributes such as part
+code, name, description, unit of measure, category and technical attributes.
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View/search | Yes | Yes | Yes | Yes | Yes |
+| Create | Yes | Yes | No | No | No |
+| Edit common attributes | Yes | Yes | No | No | No |
+| Archive | Yes | Yes | No | No | No |
+| Request new part | No | No | Yes | No | No |
+
+WAREHOUSE_MANAGER cannot edit the shared part master. The manager may request
+a missing part; OWNER/ADMIN reviews and creates it. Request statuses,
+notifications, duplicate detection and workflow are not implemented or fully
+specified. Parts used by operations must not be physically deleted. Archiving
+must preserve historical references and must not silently erase stock.
+
+### Warehouse-specific part data
+
+Warehouse-specific data includes whether a catalogue part is held at a
+warehouse, its storage placement, cell allocations and warehouse parameters.
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View | All warehouses | All warehouses | Assigned warehouses | Assigned warehouses | Assigned warehouses |
+| Add existing catalogue part to warehouse | No | Yes | Assigned warehouses | No | No |
+| Manage cell placement | No | Yes | Assigned warehouses | No | No |
+| Edit warehouse parameters | No | Yes | Assigned warehouses | No | No |
+| Directly edit stock quantity | No | No | No | No | No |
+
+Stock quantity changes only through explicit warehouse operations. Direct
+quantity editing is prohibited for every role.
+
+### Organizational reference dictionaries
+
+Examples: external recipient organizations, suppliers, units of measure and
+shared classifications.
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View | Yes | Yes | Yes | Yes | Yes |
+| Use in permitted operations | No | No | Yes | Yes | No |
+| Create/edit/archive | Yes | Yes | No | No | No |
+| Request new record | No | No | Yes | No | No |
+
+External recipient organizations are counterparties, not QSW tenant
+organizations. They do not become QSW members and receive no QSW access.
+WAREHOUSE_MANAGER may request a missing counterparty; OWNER/ADMIN controls
+creation and maintenance. Archived dictionary records cannot be selected for
+new operations but remain resolvable in historical operations. Records used
+by history are not physically deleted.
+
+### Warehouse operations
+
+Saved operations are immutable business-history records. Local save is the
+business capture point; Firestore synchronization is a separate delivery
+process. The agreed model has no separate DRAFT/POSTED stage.
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View operations/history | All warehouses | All warehouses | Assigned warehouses | Assigned warehouses | Assigned warehouses |
+| Create inbound | No | No | Yes | Yes | No |
+| Reverse inbound | No | No | Yes | No | No |
+| Create internal transfer | No | No | Yes | Yes | No |
+| Cancel internal transfer | No | No | Yes | Yes | No |
+| Create external issue | No | No | Yes | Yes | No |
+| Reverse external issue | No | No | Yes | No | No |
+
+Inbound:
+- WAREHOUSE_MANAGER and WORKER may create inbound operations at an
+  accessible warehouse.
+- Only WAREHOUSE_MANAGER may reverse inbound.
+- Reversal is a separate linked corrective operation.
+
+Internal transfer:
+- Decreases source warehouse stock and increases destination warehouse stock.
+- One logical operation/history record identifies both warehouses.
+- WAREHOUSE_MANAGER and WORKER may create and cancel it, subject to access
+  to the required warehouses.
+- Cancellation is a reverse transfer, not editing/deleting the original.
+- Incoming quantity may offset a negative destination balance subject to the
+  organization stock policy.
+
+External issue:
+- WAREHOUSE_MANAGER and WORKER may create it; only WAREHOUSE_MANAGER may
+  reverse it.
+- Source warehouse, external recipient and document number are required.
+- One document may contain multiple part lines and quantities.
+- Recipient warehouse is not specified.
+- Only the QSW source warehouse stock decreases.
+- The recipient is a third-party counterparty, not a QSW tenant.
+
+Immutability and correction:
+- Editing and physical deletion of saved operations are prohibited.
+- A correction is a separate reverse/cancellation operation with mandatory
+  reason, unique operation ID and reference to the original operation.
+- Reversal/cancellation must be idempotent and atomically update stock.
+- The same original operation cannot be reversed/cancelled twice.
+- Partial reversal has not been agreed and must not be implemented without
+  a new business decision.
+- If a corrective operation is itself wrong, create another correction;
+  do not mutate historical records.
+
+Negative stock:
+- `allow_negative_stock` is organization-level and configurable by OWNER
+  and ADMIN.
+- Negative stock is allowed by default.
+- When disabled, a new operation must not make the relevant balance negative.
+- Existing negative balances are not automatically repaired.
+- Validation must be atomic with stock mutation and enforced by trusted
+  server-side logic for concurrent remote operations.
+- Transfer cancellation must apply the same policy if destination stock has
+  already been consumed.
+
+### Stock visibility and audit
+
+| Action | OWNER | ADMIN | WAREHOUSE_MANAGER | WORKER | GUEST |
+|---|---|---|---|---|---|
+| View/search stock | All warehouses | All warehouses | Assigned warehouses | Assigned warehouses | Assigned warehouses |
+| View operation history | All warehouses | All warehouses | Assigned warehouses | Assigned warehouses | Assigned warehouses |
+| View full organization audit | Yes | Yes | No | No | No |
+| View assigned-warehouse audit | Yes | Yes | Yes | No | No |
+| Edit/delete audit | No | No | No | No | No |
+
+OWNER/ADMIN see organization-wide audit. WAREHOUSE_MANAGER sees audit only
+for assigned warehouses. WORKER/GUEST cannot view the audit log. Audit is
+append-only for normal application roles.
+
+### Organization archival
+
+Only OWNER may archive or restore an organization. Archiving preserves users,
+warehouses, parts, reference data, stock history and audit history. New
+warehouse operations are prohibited while archived. Archival must be audited.
+
+Before archival, pending/in-flight synchronization must be checked and
+archival blocked if such work is detected. A local SQLite check only sees
+that device's outbox. A server cannot see an operation that has never left an
+offline device. Therefore a cross-device synchronization barrier (for
+example, a carefully designed device registration/lease or equivalent
+protocol) is a required technical design item; do not claim a server-only
+check proves every device is synchronized.
+
+### Enforcement, SQLite, Firestore and SyncEngine requirements
+
+- Flutter widget visibility is not an authorization boundary.
+- Every protected read/write must be scoped to active organization and,
+  where applicable, authorized warehouse.
+- Firestore Security Rules must validate authenticated identity, active
+  membership, organization scope, role and warehouse scope. Client-supplied
+  organization IDs/roles must not be trusted without server validation.
+- Sensitive atomic stock workflows may require trusted backend transactions
+  or functions; client read/check/write is unsafe under concurrent devices.
+- SQLite requires tenant scope on relevant business and outbox data, with
+  repository queries that cannot mix organizations. Exact columns, indexes,
+  composite keys, migration and backfill remain to be designed.
+- Firestore paths/payloads must be tenant-scoped. Existing root collections
+  must not be assumed safe for multi-tenant use.
+- Each outbox operation must retain immutable organization identity and
+  warehouse context where applicable. A retry must never infer its tenant
+  from whichever organization is currently active.
+- SyncEngine must validate session, membership and authorization before
+  sending. Sign-out, organization switching, membership deactivation and
+  archival must not redirect or silently discard queued operations.
+- Tests must cover cross-tenant and cross-warehouse access, role escalation,
+  inactive memberships, archived organizations and concurrent stock changes.
+
+### Technical decisions still open
+
+The business rules above are agreed; the following implementation details
+are not yet decided:
+- exact Organization/OrganizationMembership fields and identifiers;
+- invitations, acceptance, duplicate membership prevention and ownership
+  transfer safeguards;
+- active-organization persistence and revocation behavior;
+- exact warehouse assignment representation;
+- mapping current `locations`/`boxes` to Rack/Cell;
+- warehouse-part and multi-cell allocation schema;
+- tenant-aware SQLite migration and legacy-data ownership/backfill;
+- tenant-scoped Firestore schema and production Security Rules;
+- trusted backend responsibilities for atomic stock workflows;
+- cross-device archive synchronization barrier;
+- part/counterparty request workflows;
+- audit event schema, retention and scoped queries;
+- queued-operation behavior after sign-out, membership revocation or archive.
+
+### Current implementation boundary
+
+At this documentation checkpoint, Firebase email/password authentication
+infrastructure and isolated authentication UI exist. `AuthUser` contains
+UID/email only. `LoginPage` and `AuthGate` exist but AuthGate is not connected
+to QswApp. Organization, membership, roles, warehouse assignment, tenant-aware
+SQLite/Firestore, production Security Rules and tenant-aware SyncEngine are
+not implemented. This specification does not authorize immediate code
+changes; implementation requires a separate staged architecture plan.
