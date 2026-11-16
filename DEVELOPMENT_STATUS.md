@@ -313,6 +313,21 @@ inspected.
 
 #### Latest synchronization validation
 
+Validated on 2026-11-17:
+
+- `dart format lib test`: 137 files checked, no formatting changes.
+- `flutter analyze`: no issues found.
+- `flutter test`: all 204 tests passed.
+- The file-backed inbound recovery integration test is included in
+  the full test suite. It verifies persistence across closing and
+  reopening the SQLite database connection, recovery of an operation
+  left in `PROCESSING`, and successful synchronization through the
+  Firestore adapter using `FakeFirebaseFirestore`.
+- This test does not simulate OS process termination or replace
+  verification on a physical Android device.
+
+#### Previous synchronization validation (2026-11-01)
+
 Validated on 2026-11-01:
 
 - `dart format lib test`: 123 files formatted, no changes required.

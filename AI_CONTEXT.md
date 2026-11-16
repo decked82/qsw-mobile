@@ -39,9 +39,15 @@
 - A sync attempt is triggered asynchronously after a successful local
   part creation in AddPartPage. A synchronization error does not undo
   the local save; the pending operation remains in the SQLite outbox.
-- An integration test verifies recovery of a PROCESSING inbound
-  operation from SQLite and its subsequent write through the Firestore
-  adapter using FakeFirebaseFirestore.
+- A file-backed SQLite integration test verifies recovery of an inbound
+  operation left in PROCESSING after closing and reopening the database.
+  It uses the real SqliteInboundTransactionRepository,
+  SqlitePendingOperationRepository, Firestore inbound sync adapter and
+  SyncEngine, with FakeFirebaseFirestore for the remote store.
+  The test verifies the persisted inbound transaction, transition of the
+  outbox operation from PROCESSING to SYNCED, and the resulting Firestore
+  document. The database connection is reopened within the same test
+  process; this is not a physical-device or OS process-termination test.
 - Before reading the pending queue, SyncEngine recovers stale operations
   left in PROCESSING by resetting them to PENDING.
 - Successful recovery is cached per SyncEngine instance. If recovery itself
